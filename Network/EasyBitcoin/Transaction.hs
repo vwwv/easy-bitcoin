@@ -7,7 +7,7 @@ module Network.EasyBitcoin.Transaction
 , txOutputs
 , checkSimple
 , checkSigs
-
+, unsignedTransaction
 ) where
 
 import Network.EasyBitcoin.Internal.ByteString
@@ -16,6 +16,8 @@ import Network.EasyBitcoin.Internal.Transaction
 import Network.EasyBitcoin.Internal.Signatures
 import Network.EasyBitcoin.BitcoinUnits
 import Network.EasyBitcoin.Script
+import Network.EasyBitcoin.Internal.Script
+
 import Network.EasyBitcoin.Address
 import Network.EasyBitcoin.Keys
 import Network.EasyBitcoin.NetworkParams
@@ -45,7 +47,7 @@ simpleTx :: (BlockNetwork net)
          -> [(Address net,BTC net)]        -- ^ Additional optional outputs
          -> SimpleTx net
 
-simpleTx  ins x xs = let unsigned_tx = buildTx_  (map fst ins) (x:xs)
+simpleTx  ins x xs = let unsigned_tx = unsignedTransaction  (map fst ins) (x:xs)
                        in SimpleTx [ (out,(derivePublic key,simpletTxSignature n key out unsigned_tx)) 
                                    | ((out,key),n) <- zip ins [0..]
                                    ] 
@@ -129,7 +131,7 @@ checkSimple (Tx v inns outs lock)
 
 
 checkSigs :: (BlockNetwork net) =>  SimpleTx      net  -> Bool
-checkSigs (SimpleTx   inns outs) = let unsigned_tx = buildTx_  (fst<$>inns) outs 
+checkSigs (SimpleTx   inns outs) = let unsigned_tx = unsignedTransaction  (fst<$>inns) outs 
 
                                     in  and [ simpletTxSignatureCheck i pub out unsigned_tx sig
                                             | ((out,(pub,sig)),i) <- zip inns [0..]
@@ -154,9 +156,45 @@ simpletTxSignatureCheck i key out tx (TxSignature sig sh)
 
 --                    in detSignTx rawTx ins
 
---buildTx_ :: [Outpoint] -> [(Address net,BTC net)] -> Tx
---buildTx_ xs ys = Tx 1 
---                    [ TxIn  point (Script []) maxBound             | point        <- xs] 
---                    [ TxOut (asSatoshis btc) (encodeOutput addr)   | (addr,btc)   <- ys] 
---                    0
+ -- TODO that maxBoundIsWrong!!!
+unsignedTransaction :: [Outpoint] -> [(Address net,BTC net)] -> Tx net
+unsignedTransaction xs ys = Tx 1 
+                            [ TxIn  point (Script []) maxBound             | point        <- xs] 
+                            [ TxOut (asSatoshis btc) (encodeOutput addr)   | (addr,btc)   <- ys] 
+                            0
+
+------------------------------------------------------------------------------------------------------------------------------
+
+decodeMultSig :: (BlockNetwork net) => Tx net -> Script -> Maybe ([(Key Public net,Maybe TxSignature)],Int,RedeemScript net)
+decodeMultSig tx (Script script) = case script of
+                                     (OP__ 0 : rest)
+                                   
+                                       | (OP_PUSHDATA content _: signatures)             <- reverse rest
+                                   
+                                       , Just redeem@(RedeemScript n pks)                <- decodeToMaybe content 
+                                   
+                                       , all pushData signatures                                       
+                                       , let output_ = encodeOutput_  redeem
+                                       
+                                       , msg <- txSigHash tx output_  0 (SigAll False)
+
+                                       , Just signed <- sequence [ decodeToMaybe payload 
+                                                                 | OP_PUSHDATA payload _ <- signatures
+                                                                 ]                          
+
+                                       , sigList <- checkSig_ msg signed <$> pks      -> Just (sigList,n,redeem)
+                                     _                                                -> Nothing
+        where
+
+            checkSig_ msg ss p = let solutions = [ ts
+                                                 | ts@(TxSignature s _) <- ss 
+                                                 , checkSig msg s p
+                                                 ]
+
+                                  in case solutions of
+                                        ts:_  -> (p, Just ts)
+                                        []    -> (p, Nothing)
+
+            pushData (OP_PUSHDATA _ _) = True
+            pushData _                 = False
 

@@ -49,9 +49,9 @@ module Network.EasyBitcoin( -- * Usage Example:
                           , checkSimple
 
                           -- * Escrows:
-                        --  , RedeemScript(..)
-                        --  , unsignedTransaction
-                        --  , signTx
+                          , RedeemScript(..)
+                          , unsignedTransaction
+                          , signTx
                         --  , signedTx
                         --  , formatSignatures
 
@@ -77,11 +77,6 @@ module Network.EasyBitcoin( -- * Usage Example:
                           , TestNet
                           , BlockNetwork(..)
                           , Params(..)
-                          , addrPrefix
-                          , scriptPrefix
-                          , wifFormat
-                          , extPubKeyPrefix
-                          , extPrvKeyPrefix
                           ) where
 
 
@@ -90,6 +85,9 @@ import Network.EasyBitcoin.Address      ( Address
                                         , isPay2SH 
                                         , isPay2PKH
                                         , addressFromUncompressed
+                                        )
+
+import Network.EasyBitcoin.Script       ( RedeemScript(..)
                                         )
 
 import Network.EasyBitcoin.NetworkParams( ProdNet
@@ -109,6 +107,7 @@ import Network.EasyBitcoin.Transaction  ( transaction
                                         , txOutputs
                                         , txInputs
                                         , checkSimple
+                                        , unsignedTransaction
                                         )
 
 import Network.EasyBitcoin.Keys         ( Key()
@@ -139,6 +138,25 @@ import Network.EasyBitcoin.BitcoinUnits( BTC()
     - explain examples of btc parsing looking the same
     - laws of derivation
     - show how parsing can make a node root!
+    -  -- TODO that maxBoundIsWrong!!! ( on unsignedTransaction transaction!! file...)
+
+    - Add warning!
+           check: 
+                          , txOutputs
+                          , txInputs
+                          , checkSimple
+
+                          -- * Escrows:
+                        --  , RedeemScript(..)
+                        --  , unsignedTransaction
+                        --  , signTx
+                        --  , signedTx
+                        --  , formatSignatures
+
+                        --  , createSignature 
+                        --  , checkSignature
+                        --  , signatureAt 
+
 
    As a toy example, let's imagine the following scenario:
      

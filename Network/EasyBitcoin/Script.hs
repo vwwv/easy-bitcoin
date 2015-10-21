@@ -143,46 +143,7 @@ decodeInput  (Script script) = case script of
 
 -------------------------------------------------------------------------------------------------------------
 
-buildTx_ :: [Outpoint] -> [(Address net,BTC net)] -> Tx net
-buildTx_   xs ys = Tx 1 
-                   [ TxIn  point (Script []) maxBound             | point        <- xs] -- TODO that maxBoundIsWrong!!!
-                   [ TxOut (asSatoshis btc) (encodeOutput addr)   | (addr,btc)   <- ys] 
-                   0
-
 ---------------------------------------------------------------------------------------------------------------
-decodeMultSig :: (BlockNetwork net) => Tx net -> Script -> Maybe ([(Key Public net,Maybe TxSignature)],Int,RedeemScript net)
-decodeMultSig tx (Script script) = case script of
-                                     (OP__ 0 : rest)
-                                   
-                                       | (OP_PUSHDATA content _: signatures)             <- reverse rest
-                                   
-                                       , Just redeem@(RedeemScript n pks)                <- decodeToMaybe content 
-                                   
-                                       , all pushData signatures                                       
-                                       , let output_ = encodeOutput_  redeem
-                                       
-                                       , msg <- txSigHash tx output_  0 (SigAll False)
-
-                                       , Just signed <- sequence [ decodeToMaybe payload 
-                                                                 | OP_PUSHDATA payload _ <- signatures
-                                                                 ]                          
-
-                                       , sigList <- checkSig_ msg signed <$> pks      -> Just (sigList,n,redeem)
-                                     _                                                -> Nothing
-        where
-
-            checkSig_ msg ss p = let solutions = [ ts
-                                                 | ts@(TxSignature s _) <- ss 
-                                                 , checkSig msg s p
-                                                 ]
-
-                                  in case solutions of
-                                        ts:_  -> (p, Just ts)
-                                        []    -> (p, Nothing)
-
-            pushData (OP_PUSHDATA _ _) = True
-            pushData _                 = False
-
 
 
 
