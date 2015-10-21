@@ -1,8 +1,4 @@
-module Network.EasyBitcoin.Internal.Serialization.ByteString
-     ( module Network.EasyBitcoin.Internal.Serialization.ByteString
-     , module Data.Binary.Get
-     , module Data.Binary.Put 
-     ) 
+module Network.EasyBitcoin.Internal.ByteString
  where
 
 import Data.Binary

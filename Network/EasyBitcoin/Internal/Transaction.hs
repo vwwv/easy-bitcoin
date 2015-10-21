@@ -1,23 +1,17 @@
 {-# LANGUAGE TypeFamilies #-}
 
 module Network.EasyBitcoin.Internal.Transaction 
-     ( module Network.EasyBitcoin.Internal.Transaction
-     , module Network.EasyBitcoin.Keys 
-     , module Network.EasyBitcoin.Address
-     , module Network.EasyBitcoin.BitcoinUnits
-     , module Network.EasyBitcoin.Internal.Script 
-     )
  where
 
 
 import Network.EasyBitcoin.Internal.Words
-import Network.EasyBitcoin.Internal.Serialization.Base58 ( encodeBase58
-                                                         , decodeBase58
-                                                         , addRedundancy
-                                                         , liftRedundacy
-                                                         )
+import Network.EasyBitcoin.Internal.Base58 ( encodeBase58
+                                           , decodeBase58
+                                           , addRedundancy
+                                           , liftRedundacy
+                                           )
 
-import Network.EasyBitcoin.Internal.Serialization.ByteString
+import Network.EasyBitcoin.Internal.ByteString
 import Network.EasyBitcoin.Internal.InstanciationHelpers
 import Network.EasyBitcoin.Internal.Signatures
 import Network.EasyBitcoin.Keys
@@ -52,7 +46,7 @@ import Data.Binary.Put( putWord64be
                       )
 
 import Data.Maybe(fromMaybe)
-import Data.Time.Clock.POSIX
+
 
 
 
@@ -63,14 +57,12 @@ import Data.Time.Clock.POSIX
 
  
 --------------------------------------------------------------------------------
--- | Generic bitcoin transaction. Its 'Binary' instance follow the bitcoin protocol format.
+-- | Bitcoin transaction. Its 'Binary' instance follow the p2p bitcoin protocol format.
 --  For its 'Read' and 'Show' instances it uses the hexadecimal char representation of its 'Binary' instance.
 --
---   Only syntax validation is performance when importing a 'Tx', if some extra validation is requiered, such
---   signature validation, you'll need to cast it to another transaction type, like 'SimpleTx' or 'MultisigTx'.
+-- When parsed, only syntax validation is performanced, particulary, signature validation is not computed.
 
-data Tx    = Tx    { txVersion      :: Int -- !Word32
-             --      , txTime         :: POSIXTime
+data Tx net = Tx   { txVersion      :: Int -- !Word32
                    , txIn           :: [TxIn]
                    , txOut          :: [TxOut]
                    , txLockTime     :: Int -- Either a b  -- Word32
@@ -92,13 +84,9 @@ data TxOut = TxOut { outValue       :: Int -- Word64 -- change to ¿BTC?
 
 
 
-
---TODO Instead of failing, it somtimes launchs an exception when it has not enough bytes!!
---TODO: make all implementation isolated!! 
-instance Binary Tx where
+instance Binary (Tx net) where
     
     get =   Tx <$> (fmap fromIntegral getWord32le)
-             --  <*> (fmap fromIntegral getWord32le)
                <*> (replicateList =<< get)
                <*> (replicateList =<< get)
                <*> (fmap fromIntegral getWord32le)
@@ -107,7 +95,6 @@ instance Binary Tx where
          replicateList (VarInt c) = replicateM (fromIntegral c) get
 
     put (Tx v   is os l) = do putWord32le (fromIntegral v)
-               --               putWord32le (round        t)
                               put $ VarInt $ fromIntegral $ length is
                               forM_ is put
                             
@@ -137,14 +124,6 @@ instance Binary TxOut where
                         putByteString s_
 
 
-instance FromField Tx where
-  fromField = genericReadField 
-
-
-instance ToField Tx where
-  toField = genericWriteField
-
-
 instance Binary TxIn where
 
    get = do outpoint   <- get 
@@ -153,8 +132,7 @@ instance Binary TxIn where
             val        <- getWord32le
 
             case decodeToMaybe raw_script of
-                --_           -> error $ bsToHex raw_script --
-                -- _           -> return$TxIn outpoint (Script []) (fromIntegral val)
+
                 Just script -> return$TxIn outpoint script (fromIntegral val)
                 _           -> fail "could not decode the sig-script"
 
@@ -169,6 +147,7 @@ instance Binary TxIn where
 
 -- | Represents a reference to a transaction output, that is, a transaction hash ('Txid') plus the outvector number
 --   of that output. 
+data Outpoint          = Outpoint Txid Int deriving (Eq,Show,Ord,Read)
 
 -- | A transaction identification as a hash of the transaction. 2 transaction are consider different if they have different
 --   'Txid's. In some cases, it might be possible for a peer to modify a transaction into an equivalent one having a different
@@ -178,8 +157,8 @@ instance Binary TxIn where
 data Txid              = Txid{ txidHash :: Word256} deriving (Eq,Ord)
 
 
-txid::(Transaction tx) => tx ->  Txid
-txid = Txid . fromIntegral . doubleHash256 . encode' . genericTx
+txid:: Tx net ->  Txid
+txid = Txid . fromIntegral . doubleHash256 . encode' 
 
 
 instance Show (Txid) where
@@ -205,17 +184,11 @@ instance ToJSON Txid where
     toJSON = toJSON.show
 
 
-instance ToJSON Tx where
+instance ToJSON (Tx net) where
     toJSON = toJSON.show
 
 
-instance ToField Txid where
-    toField = genericWriteField
 
-instance FromField Txid where
-    fromField = genericReadField  
-
-data Outpoint          = Outpoint Txid Int deriving (Eq,Show,Ord,Read)
 
 instance Binary Outpoint where
 
@@ -223,31 +196,14 @@ instance Binary Outpoint where
 
     put (Outpoint h i) = put h >> putWord32le (fromIntegral i)
 
-instance FromField Outpoint where
-    fromField = genericReadField
 
-instance Show Tx where
+instance Show (Tx net) where
     show = showAsBinary
-instance Read Tx where
+
+instance Read (Tx net) where
     readsPrec = readsPrecAsBinary
 ---------------------------------------------------------------------------------------------------------------------------------------
 
-
--- | The class of all sub-types of 'Tx'.
--- 
--- @
---  interpreted (genericTx x)  == Right x 
--- @
-class Transaction tx where
-  data TxError tx :: *
-  genericTx       :: tx -> Tx 
-  interpreted     :: Tx -> Either (TxError tx) tx
-
-
-instance Transaction Tx where
-    data (TxError Tx)
-    genericTx   = id
-    interpreted = Right 
 
 --------------------------------------------------------------------------------
 
@@ -257,7 +213,7 @@ instance Transaction Tx where
 
 
 
-txSigHash :: Tx              -- ^ Transaction to sign.
+txSigHash :: Tx net          -- ^ Transaction to sign.
           -> Script          -- ^ Output script that is being spent.
           -> Int             -- ^ Index of the input that is being signed.
           -> SigHash         -- ^ What parts of the transaction should be signed.

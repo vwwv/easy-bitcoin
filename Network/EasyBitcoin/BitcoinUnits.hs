@@ -1,22 +1,34 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Network.EasyBitcoin.BitcoinUnits where
+module Network.EasyBitcoin.BitcoinUnits 
+ ( btc
+ , mBTC
+ , satoshis
+ , asBtc
+ , asMbtc
+ , asSatoshis
+ , showAsBtc
+ , showAsMbtc
+ , showAsSatoshis
+ , BTC()
+ )where
 
 
 import Network.EasyBitcoin.NetworkParams
 import Network.EasyBitcoin.Internal.InstanciationHelpers
 import Control.Arrow(first)
 import Control.Applicative((<$>))
+import Data.Aeson
 
 -- | Bitcoins are represented internally as an integer value, but showed and read as a decimal values.
---   When importing them, extra significative digits will be silently truncated (it does not round them).
+--   When importing them, extra significative digits will be silently dropped.
 
-newtype BTC  a = Satoshis Int   deriving (Eq,Ord,Num,FromField,ToField)
+newtype BTC  a = Satoshis Int   deriving (Eq,Ord,Num)
 
 btc            :: Double -> BTC net
-btc          x = Satoshis $ truncate (x*100000000) 
+btc          x = Satoshis $ round (x*100000000) 
 
 mBTC           :: Double -> BTC net
-mBTC         x = Satoshis $ truncate (x*100000)  
+mBTC         x = Satoshis $ round (x*100000)  
 
 satoshis       :: Int    -> BTC net
 satoshis       = Satoshis      
@@ -61,4 +73,3 @@ instance Read (BTC a) where
 
 instance ToJSON (BTC a) where
   toJSON = toJSON.asBtc
-

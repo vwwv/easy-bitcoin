@@ -1,11 +1,16 @@
+{-# LANGUAGE DataKinds,GADTs #-}
 module Network.EasyBitcoin.Internal.Signatures 
- where
+ ( detSignMsg
+ , Signature()
+ , checkSig
+ )where
 
 
+import Network.EasyBitcoin.Keys
 import Network.EasyBitcoin.Internal.Keys
 import Network.EasyBitcoin.Internal.Words
 import Network.EasyBitcoin.Internal.CurveConstants
-import Network.EasyBitcoin.Internal.Serialization.ByteString
+import Network.EasyBitcoin.Internal.ByteString
 import Network.EasyBitcoin.Internal.Words
 import Network.EasyBitcoin.Internal.HashFunctions
 import qualified Data.ByteString as BS
@@ -39,8 +44,8 @@ import Data.Maybe
 -- RFC 6979 <http://tools.ietf.org/html/rfc6979>
 
 
-detSignMsg :: Word256 -> PrvKey net -> Signature
-detSignMsg n (PrvKey  x) = detSignMsg_ n x 
+detSignMsg :: Word256 -> Key Private net -> Signature
+detSignMsg n (ExtendedPrv _ _ _ _ (PrvKey  x)) = detSignMsg_ n x 
 
 detSignMsg_ :: Word256 -> FieldN -> Signature
 detSignMsg_ h d = go $ hmacDRBGNew (enc d) (encode' h) BS.empty
@@ -90,22 +95,24 @@ unsafeSignMsg h d (k,p) = do let (x,_) = getAffine p
 
 -- Section 4.1.4 http://www.secg.org/download/aid-780/sec1-v2.pdf
 -- | Verify an ECDSA signature
-checkSig :: Word256 -> Signature -> PubKey net -> Bool
+checkSig :: Word256 -> Signature -> Key Public net -> Bool
+checkSig h sig ( ExtendedPub _ _ _ _ key) = checkSig_ h sig key
+  where
 -- 4.1.4.1 (r and s can not be zero)
-checkSig _ (Signature 0 _) _ = False
-checkSig _ (Signature _ 0) _ = False
-checkSig h (Signature r s) q = case Just $ getAffine p of
-    Nothing    -> False
-    Just (x,_) -> (fromIntegral x :: FieldN) == r
-  where 
-    -- 4.1.4.2 / 4.1.4.3
-    e  = (fromIntegral h :: FieldN)
-    -- 4.1.4.4
-    s' = inverseN s
-    u1 = e*s'
-    u2 = r*s'
-    -- 4.1.4.5 (u1*G + u2*q)
-    p  = shamirsTrick u1 curveG u2 (pubKeyPoint q)
+    checkSig_ _ (Signature 0 _) _ = False
+    checkSig_ _ (Signature _ 0) _ = False
+    checkSig_ h (Signature r s) q = case Just $ getAffine p of
+        Nothing    -> False
+        Just (x,_) -> (fromIntegral x :: FieldN) == r
+      where 
+        -- 4.1.4.2 / 4.1.4.3
+        e  = (fromIntegral h :: FieldN)
+        -- 4.1.4.4
+        s' = inverseN s
+        u1 = e*s'
+        u2 = r*s'
+        -- 4.1.4.5 (u1*G + u2*q)
+        p  = shamirsTrick u1 curveG u2 (pubKeyPoint q)
 
 
 data Signature = Signature { sigR :: !FieldN

@@ -29,10 +29,6 @@ import Control.Monad                   (unless, guard,replicateM,forM_,liftM2)
 import Control.Applicative((<$>))
 
 
-class ScriptType script where
-    generalScript :: script -> Script
-    interpret     :: Script -> Maybe script
-
 
 newtype Script = Script{scriptOps::[ScriptOp]} 
                  deriving (Eq, Show, Read)
@@ -152,7 +148,7 @@ data ScriptOp   = OP_PUSHDATA { pushContent :: !BS.ByteString
 
 
 -- | Data type representing the type of an OP_PUSHDATA opcode.
-data PushDataType = OPCODE      -- | The next opcode bytes is data to be pushed onto the stack
+data PushDataType = OPCODE      -- ^ The next opcode bytes is data to be pushed onto the stack
 
                                 -- | The next byte contains the number of bytes to be pushed onto
                                 -- the stack

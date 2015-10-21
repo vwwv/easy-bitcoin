@@ -1,8 +1,8 @@
 {-|
 Module      : EasyBitcoin
-Description : Libray to parse and compose bitcoin transactions, keys and addresses. 
+Description : Libray to parse and compose bitcoin transactions, keys, addresses and escrows. 
 Copyright   : (c) Alejandro Durán Pallarés, 2015
-License     : GPL-3
+License     : BSD3
 Maintainer  : vwwv@correo.ugr.es
 Stability   : experimental
 
@@ -10,75 +10,105 @@ Stability   : experimental
 EasyBitcoin is a simple haskell library providing types and class-instances for bitcoin related code; 
 it also include an small set of functions to handle addresses, transactions and escrows.
 
+Some small programs as examples can be found at <http://example.com label> .
+
 -}
 
 {-# LANGUAGE DataKinds, GADTs, TypeFamilies, EmptyDataDecls #-}
 
 
-module Network.EasyBitcoin 
- (
- -- * Usage Example:
- -- $example 
+module Network.EasyBitcoin( -- * Usage Example:
+                            -- $example 
 
- -- * Addresses:
-   Address()
- , Addressable(..)
- -- , addressFromUncompressed TODO: on docs, explain one could need this
- --                                 speak about 'legacy'
+                         -- * Addresses:
+                            Address()
+                          , Addressable(..)
+                          , isPay2SH 
+                          , isPay2PKH
+                          , addressFromUncompressed
+                          
 
- -- * Transactions:
- , Outpoint (..)
- , Txid()
- , txid
- -- ** Generic Transactions:
- , Tx ()
- , Transaction(..)
- , transaction
- , txOutputs
- , txInputs
- , (===)
- -- ** Simple Transactions:
- , SimpleTx(..)
- , simpleTx
+                          -- * Keys: 
+                          , Key()
+                          , Visibility(..)
+                          , derive
+                          , derivePublic
+                          , deriveHardened
+                          , deriveRoot
+                          , (===)
 
- -- ** Multisig Transactions:
- --, MultisigTx
- --, multisigTX
- --, addSignature
- --, combineSignatures
- --, extractRedeem
- --, signaturesUsed
- --, RedeemScript
- 
- -- * Keys: 
- , Key()
- , Visibility(..)
- , derive
- , derivePublic
- , deriveHardened
- , deriveRoot
 
- -- * Bitcoin Units:
- , BTC()
- , btc
- , mBTC
- , satoshis
- , asBtc
- , asMbtc
- , asSatoshis
- , showAsBtc
- , showAsMbtc
- , showAsSatoshis
+                          -- * Transactions:
+                          , Outpoint (..)
+                          , Txid()
+                          , txid
+                          , Tx ()
+                          , transaction
+                          , txOutputs
+                          , txInputs
+                          , checkSimple
 
- -- * Network Parameters:
- , ProdNet
- , TestNet
- , BlockNetwork()
- ) where
+                          -- * Escrows:
+                        --  , RedeemScript(..)
+                        --  , unsignedTransaction
+                        --  , signTx
+                        --  , signedTx
+                        --  , formatSignatures
+
+                        --  , createSignature 
+                        --  , checkSignature
+                        --  , signatureAt (lens to create, modify etc... signatures)
+                        
+
+                          -- * Bitcoin Units:
+                          , BTC()
+                          , btc
+                          , mBTC
+                          , satoshis
+                          , asBtc
+                          , asMbtc
+                          , asSatoshis
+                          , showAsBtc
+                          , showAsMbtc
+                          , showAsSatoshis
+
+                          -- * Network Parameters:
+                          , ProdNet
+                          , TestNet
+                          , BlockNetwork(..)
+                          , Params(..)
+                          , addrPrefix
+                          , scriptPrefix
+                          , wifFormat
+                          , extPubKeyPrefix
+                          , extPrvKeyPrefix
+                          ) where
+
+
+import Network.EasyBitcoin.Address      ( Address
+                                        , Addressable(..)
+                                        , isPay2SH 
+                                        , isPay2PKH
+                                        , addressFromUncompressed
+                                        )
 
 import Network.EasyBitcoin.NetworkParams( ProdNet
                                         , TestNet
                                         , BlockNetwork
+                                        , Params(..)
+                                        )
+
+import Network.EasyBitcoin.Internal.Transaction
+                                        ( Outpoint (..)
+                                        , Txid
+                                        , txid
+                                        , Tx()
+                                        )
+
+import Network.EasyBitcoin.Transaction  ( transaction
+                                        , txOutputs
+                                        , txInputs
+                                        , checkSimple
                                         )
 
 import Network.EasyBitcoin.Keys         ( Key()
@@ -90,113 +120,127 @@ import Network.EasyBitcoin.Keys         ( Key()
                                         , (===)
                                         )
 
-import Network.EasyBitcoin.BitcoinUnits ( btc
-                                        , mBTC
-                                        , satoshis
-                                        , asBtc
-                                        , asMbtc
-                                        , asSatoshis
-                                        , showAsBtc
-                                        , showAsMbtc
-                                        , showAsSatoshis
-                                        )
-
-import Network.EasyBitcoin.Address      ( Address
-                                        , Addressable(..)
-                                        )
-
-import Network.EasyBitcoin.Transaction  ( Outpoint(..)
-                                        , Tx(..)
-                                        , TxIn(..)
-                                        , TxOut(..)
-                                        , SimpleTx(..)
-                                        , Txid
-                                        , txid
-                                        , Transaction(..)
-                                        , simpleTx
-                                        , transaction
-                                       -- , MultisigTx(..)
-                                       -- , multisigTX
-                                       -- , addSignature
-                                       -- , combineSignatures
-                                       -- , extractRedeem
-                                       -- , signaturesUsed
-                                        )
-
-import Network.EasyBitcoin.Script       ( RedeemScript(..)
-                                        , decodeOutput
-                                        , decodeInput
-                                        )
-
-import Network.EasyBitcoin.BitcoinUnits ( BTC()
-                                        , btc
-                                        , mBTC
-                                        , satoshis
-                                        , asBtc
-                                        , asMbtc
-                                        , asSatoshis
-                                        , showAsBtc
-                                        , showAsMbtc
-                                        , showAsSatoshis 
-                                        )
-
-
-
----- Clean this a bit...
---txOutputs :: (BlockNetwork net) => Tx -> [(BTC net, Maybe (Address net))] 
-txOutputs :: Tx -> [(BTC TestNet, Maybe (Address TestNet))]
-txOutputs tx = fmap transform $ txOut tx 
-   where
-    transform x = ( satoshis $ outValue x
-                  , decodeOutput $ scriptOutput x
-                  )
-
---txInputs :: (BlockNetwork net) => Tx -> [(Outpoint,Maybe (Address net))]
---should only return the address in case its signature is verified and complete!!!
-txInputs :: Tx -> [(Outpoint,Maybe (Address TestNet))]
-txInputs tx = fmap transform $ txIn tx 
-   where
-    transform x = ( prevOutput  x
-                  , decodeInput $ scriptInput  x 
-                  )
-
+import Network.EasyBitcoin.BitcoinUnits( BTC()
+                                       , btc
+                                       , mBTC
+                                       , satoshis
+                                       , asBtc
+                                       , asMbtc
+                                       , asSatoshis
+                                       , showAsBtc
+                                       , showAsMbtc
+                                       , showAsSatoshis
+                                       )
 
 {- $example
 
+   TODO:
+
+    - explain examples of btc parsing looking the same
+    - laws of derivation
+    - show how parsing can make a node root!
+
+   As a toy example, let's imagine the following scenario:
+     
+   *  On a blog, there's a donation address @mm8LjcoUYdPNKgWshGs7dueFu33aK56ckb@ (private   key @__91vaDsoxZACAZeGM89Y7dBnbTB7wrvtBeEkMTpL2sCgEtHf4RBn__@). 
+
+   *  The blog is written by blogger A, who wrote __70%__ of the posts, and blogger B, who wrote the remaining __30%__.
+
+   *  They want split the donation proportionally to the number of posts they have written.
+
+   *  Blogger A has as personal address @__miHWju2dzq9RcUPESzYBgVWa3W3swTXtLo__@ .
+
+   *  Blogger B has as personal address @__mvsXpubWQSw2dK2L85iYFppnNjGm439aWK__@ .
+
+   As this is an example, we won't use real bitcoin, but testnet bitcoin, also, we'll use Coinbase's
+   public bitcoin client, Toshi, so we don't have to install anything in our computer:
+
+
    @
-   import Network.SimpleBitcoin
-   import Data.Aeson.Lens
-   import Control.Lens
-   import Network.Wreq(get)
-   import Control.Monad(forever)
-   
-   incoming  = read "xxxxxxxx" :: Key Private TestNet 
-   outgoingA = read \"YYYYYYYY\" :: Address TestNet
-   outgoingB = read \"YYYYYYYY\" :: Address TestNet
 
-   fee       = btc 0.0001 
+    {-# LANGUAGE DataKinds, OverloadedStrings #-}
 
-   main = do putStrLn $ "Rebrodcasting from " ++ address incoming
-             forever  $ readToshi >>= maybe (return ()) sendToshi . createTransaction
-   
-   
-   readToshi :: IO [(Outpoint, BTC TestNet)]
-   readToshi = undefined
-   
-   sendToshi :: Tx -> IO ()
-   sendToshi = undefined
+    import Network.EasyBitcoin
+    import Control.Monad(forever)
+    import Network.HTTP.Client(HttpException(StatusCodeException))
+    import Network.Wreq(get,statusCode,responseBody)
+    import Control.Exception(handleJust)
+    import Control.Lens
+    import Data.Aeson.Lens
+    import Safe
+    import Control.Applicative
+    import Control.Monad
+    import Control.Concurrent
 
-   createTransaction :: [(Outpoint, BTC TestNet)] -> Maybe Tx
-   createTransaction = undefined
+
+    ----------------------------------------------------------------------------------------------
+    incoming  = read "91vaDsoxZACAZeGM89Y7dBnbTB7wrvtBeEkMTpL2sCgEtHf4RBn" :: Key Private TestNet 
+    outgoingA = read "miHWju2dzq9RcUPESzYBgVWa3W3swTXtLo"                  :: Address TestNet
+    outgoingB = read "mvsXpubWQSw2dK2L85iYFppnNjGm439aWK"                  :: Address TestNet
+    ----------------------------------------------------------------------------------------------
+    fee           = btc 0.0001  -- the miner fee to use.
+    threshold     = btc 0.2     -- won't send any transaction till reach this amount. This is important
+                                -- to avoid creating "dust" transactions.
+
+    server        = "https://testnet3.toshi.io/" -- The Coinbase Toshi client testnet url.
+    secondsToPool = 20
+    ----------------------------------------------------------------------------------------------
+
+    -- General workflow:
+    --    each 20 seconds:
+    --       - read from Toshi all unspent outpoints.
+    --       - if not enough funds holds on the unspent outpoints:
+    --           continue next iteration.
+    --       - else:
+    --           combining all avaliable outpoints into a transaction to miHWju2dzq9RcUPESzYBgVWa3W3swTXtLo and mvsXpubWQSw2dK2L85iYFppnNjGm439aWK
+    --           send this transaction to Toshi to be broadcasted into the network.
+
+    main::IO ()
+    main = do putStrLn $ "Rebrodcasting from " ++ show (address incoming) ++ " to "++ show outgoingA ++ " and " ++ show outgoingB
+              forever  $ do readToshi >>= maybe (return ()) sendToshi . createTransaction 
+                            threadDelay (secondsToPool*1000000)
+
+
+
+    -- If not enough funds, returns Nothing, otherwise, returns the transaction to be sent.
+    createTransaction :: [(Outpoint, BTC TestNet)] -> Maybe (Tx TestNet)
+    createTransaction inputs = if amount > threshold then Just txToSend
+                                                     else Nothing
+       where
+          amount    = sum  (fmap snd inputs) - fee 
+          amountToA = btc (asBtc amount * 0.7)
+          amountToB = amount - amountToA
+          
+          txToSend  = transaction [ (outpoint,incoming) | (outpoint, _ ) <- inputs]
+                                  (outgoingA,amountToA)  [(outgoingB,amountToB)]
+
+
+    sendToshi :: Tx TestNet -> IO ()
+    sendToshi tx = do putStrLn $ "Sending tx: " ++ show (txid tx)
+                      post (server ++ "/api/v0/transactions") (toJSON$show tx)
+
+
+    -- Querying and parsing the Toshi client about the unspent_outputs holds on the address defined by the private key 
+    -- 91vaDsoxZACAZeGM89Y7dBnbTB7wrvtBeEkMTpL2sCgEtHf4RBn (that is mm8LjcoUYdPNKgWshGs7dueFu33aK56ckb).
+    readToshi :: IO [(Outpoint, BTC TestNet)]
+    readToshi = handleJust isNotFound (const$ return []) 
+              
+              $ do body <- get $ server ++ "api/v0/addresses/"++ show (address incoming) ++ "/unspent_outputs" 
+                   return $ body ^.. responseBody . values . to parseOutpoint . _Just
+     where
+        -- Toshi returns 404 if the address has never received any tx
+        isNotFound ex = case ex of 
+                         StatusCodeException s _ _
+                           | s ^. statusCode == 404 -> Just ()
+                         _                          -> Nothing 
+
+        parseOutpoint val = do vout   <- (val ^? key "output_index"     ._JSON)
+                               txid   <- (val ^? key "transaction_hash" ._JSON. to readMay._Just)
+                               amount <- (val ^? key "amount"           ._JSON. to satoshis)
+                               
+                               Just (Outpoint txid vout, amount)
+
+
    @
 
 -}
-
-
-
-
-
-
----------------------------------------------------------------------------------
-
-

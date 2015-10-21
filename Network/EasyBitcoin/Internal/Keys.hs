@@ -5,13 +5,14 @@ module Network.EasyBitcoin.Internal.Keys
 
 import Network.EasyBitcoin.Internal.Words(Word256,FieldN,FieldP,Word160)
 import Network.EasyBitcoin.Internal.InstanciationHelpers
-import Network.EasyBitcoin.Internal.Serialization.ByteString
+import Network.EasyBitcoin.Internal.ByteString
 import Network.EasyBitcoin.Internal.CurveConstants
 import Network.EasyBitcoin.Internal.HashFunctions
 import Network.EasyBitcoin.NetworkParams
 import Data.Binary
 import Control.Applicative
 import Control.Monad
+import Data.Aeson
 
 newtype PrvKey net     = PrvKey FieldN deriving (Eq, Ord,Num,Enum,Real,Integral) 
 data PubKey net        = PubKey {pubKeyPoint::Point}  deriving Eq
@@ -113,9 +114,7 @@ instance (BlockNetwork net) => Binary (Compressed (PrvKey net)) where
 ---- wifFormatTestNet3
 
 getPriv prefix = do mark       <- getWord8
-                    --error "awesome"
                     payload    <- fromIntegral <$> (get::Get Word256)
-                    --error "foo"
                     compressed <- (getWord8 >>= (guard.(==0x01)) >> return True ) <|>  (return False)
                     guard (mark == prefix)
 

@@ -1,24 +1,16 @@
-module Network.EasyBitcoin.Internal.InstanciationHelpers
-     ( module Network.EasyBitcoin.Internal.InstanciationHelpers
-     , module Database.PostgreSQL.Simple.FromField
-     , module Database.PostgreSQL.Simple.ToField 
-     , FromJSON(..)
-     , ToJSON(..)
-     ) 
+module Network.EasyBitcoin.Internal.InstanciationHelpers 
  where
 
 
 
-import Network.EasyBitcoin.Internal.Serialization.Base58 ( encodeBase58
-                                                         , decodeBase58
-                                                         , addRedundancy
-                                                         , liftRedundacy
-                                                         )
+import Network.EasyBitcoin.Internal.Base58 ( encodeBase58
+                                           , decodeBase58
+                                           , addRedundancy
+                                           , liftRedundacy
+                                           )
 
-import Network.EasyBitcoin.Internal.Serialization.ByteString
+import Network.EasyBitcoin.Internal.ByteString
 import Data.Binary
-import Database.PostgreSQL.Simple.FromField
-import Database.PostgreSQL.Simple.ToField
 
 import qualified Data.ByteString as BS
 import Data.Char(isSpace)
@@ -59,16 +51,3 @@ readsPrecAsBinary58 :: (Binary a) => Int -> ReadS a
 readsPrecAsBinary58  _ str = case readsPrec_ str of 
                                 ( Just result, rest) -> [(result,rest)]
                                 _                    -> []
-
-
-genericReadField:: (Read a) => FieldParser a
-genericReadField f bs = fromField f bs >>= formatFromString
-   where
-    formatFromString str 
-      | Just result <- readMay str = return result
-      | otherwise                  = fail   $ "Could not parse:  "++ show str 
-
-
-genericWriteField :: (Show a) => a -> Action 
-genericWriteField  x = toField $ show x 
-

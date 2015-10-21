@@ -21,7 +21,8 @@ import Data.Bits    ( shiftL
                     , shiftR
                     , rotateL
                     , xor
-                    , (.&.), (.|.)
+                    , (.&.)
+                    , (.|.)
                     )
 
 import qualified Data.ByteString as BS  ( ByteString
@@ -37,7 +38,7 @@ import qualified Data.ByteString as BS  ( ByteString
                                         )
 
 import Network.EasyBitcoin.Internal.Words
-import Network.EasyBitcoin.Internal.Serialization.ByteString
+import Network.EasyBitcoin.Internal.ByteString
 import Data.Word 
 import qualified Data.ByteString as BS
 
@@ -146,3 +147,25 @@ hmacDRBGGen (k0,v0,c0) bytes info | bytes * 8 > 7500 = error "Maximum bits per r
 
 chksum32 :: BS.ByteString -> CheckSum32
 chksum32 bs = fromIntegral $ (doubleHash256 bs) `shiftR` 224
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

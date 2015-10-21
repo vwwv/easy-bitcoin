@@ -2,7 +2,7 @@
 
 
 
-module Network.EasyBitcoin.Internal.Serialization.Base58 
+module Network.EasyBitcoin.Internal.Base58 
  ( encodeBase58
  , decodeBase58
  , addRedundancy
@@ -25,7 +25,7 @@ import Data.List(unfoldr)
 
 import Numeric (showIntAtBase, readInt)
 import Network.EasyBitcoin.Internal.HashFunctions
-import Network.EasyBitcoin.Internal.Serialization.ByteString
+import Network.EasyBitcoin.Internal.ByteString
 
 
 
@@ -51,12 +51,6 @@ liftRedundacy bs = let (original,extra) = BS.splitAt (BS.length bs - 4) bs
 
 
 
-
-
-
-
--- TODO, change name...
--- the trailing ceros are skipped!!
 encodeBase58::BS.ByteString -> String
 encodeBase58 bs = l++r
      where   
@@ -118,10 +112,6 @@ stringToBS = B8.pack
 -- | Transform a strict bytestring to a string
 bsToString :: BS.ByteString -> String
 bsToString = B8.unpack
-
-
-
-
 
 
 

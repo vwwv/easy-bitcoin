@@ -5,7 +5,7 @@ module Network.EasyBitcoin.Internal.Words
 
 
 import Network.EasyBitcoin.Internal.CurveConstants(curveP,curveN)
-import Network.EasyBitcoin.Internal.Serialization.ByteString
+import Network.EasyBitcoin.Internal.ByteString
 import Numeric
 import Control.Arrow
 import Control.Applicative
@@ -349,19 +349,6 @@ instance BigWordMod n => Bits (BigWord n) where
     
     popCount (BigWord i) = popCount i
     isSigned _ = False
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

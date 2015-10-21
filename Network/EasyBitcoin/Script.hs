@@ -1,15 +1,13 @@
 {-# LANGUAGE  DataKinds, ScopedTypeVariables #-}
 module Network.EasyBitcoin.Script 
-     ( module Network.EasyBitcoin.Script
-     , module Network.EasyBitcoin.Internal.Script
-     ) where
+ where
 
 
 
 import Network.EasyBitcoin.Internal.Script
 import Network.EasyBitcoin.Keys
 import Network.EasyBitcoin.Internal.Words
-import Network.EasyBitcoin.Internal.Serialization.ByteString
+import Network.EasyBitcoin.Internal.ByteString
 import Network.EasyBitcoin.Internal.Transaction
 import Network.EasyBitcoin.Internal.Signatures
 import Network.EasyBitcoin.Internal.Keys
@@ -41,10 +39,9 @@ import Control.Applicative((<$>))
 import Network.EasyBitcoin.Address
 import Network.EasyBitcoin.Internal.HashFunctions
 import Network.EasyBitcoin.NetworkParams
-import Data.Time.Clock.POSIX
--- TODO: split script on base specific scripts
+import Network.EasyBitcoin.BitcoinUnits
 
-
+import Data.Aeson
 
 
 
@@ -52,12 +49,6 @@ import Data.Time.Clock.POSIX
 --    * number of requiered signatures.
 --    * public keys allowed to use for signing.
 data RedeemScript  net = RedeemScript Int [Key Public net]  deriving (Eq)
-
-instance (BlockNetwork net) => ToField (RedeemScript net) where
-    toField = genericWriteField 
-
-instance (BlockNetwork net) => FromField (RedeemScript net) where
-    fromField = genericReadField 
 
 
 instance (BlockNetwork net) => Show (RedeemScript net) where
@@ -71,24 +62,23 @@ instance (BlockNetwork net) => ToJSON (RedeemScript net) where
   toJSON = toJSON.show
 
 
-instance (BlockNetwork net) => ScriptType (RedeemScript net) where
 
-    generalScript (RedeemScript minKeys keys) = Script $  [ op minKeys ] 
-                                                       ++ [ opPushData $ serializeCompressedSingleton k | k  <- keys]
-                                                       ++ [ op $ length keys, OP_CHECKMULTISIG]
+generalScript (RedeemScript minKeys keys) = Script $  [ op minKeys ] 
+                                                   ++ [ opPushData $ serializeCompressedSingleton k | k  <- keys]
+                                                   ++ [ op $ length keys, OP_CHECKMULTISIG]
 
-    interpret (Script (opMin : rest )) = case splitAt (length rest -2) rest of
-    
-                                           (rest_, [opMax,OP_CHECKMULTISIG]) -> do op_min     <- opNumber opMin
-                                                                                   op_max     <- opNumber opMax
-                                                                                   compressed <- mapM getPubKeys rest_
-                                                                                  
-                                                                                   if op_max == length rest_ &&  op_min <= op_max 
-                                                                                    
-                                                                                       then return $ RedeemScript op_min compressed
-                                                                                       else Nothing
-                                                                                                     
-                                           _              -> Nothing
+interpret (Script (opMin : rest )) = case splitAt (length rest -2) rest of
+
+                                       (rest_, [opMax,OP_CHECKMULTISIG]) -> do op_min     <- opNumber opMin
+                                                                               op_max     <- opNumber opMax
+                                                                               compressed <- mapM getPubKeys rest_
+                                                                              
+                                                                               if op_max == length rest_ &&  op_min <= op_max 
+                                                                                
+                                                                                   then return $ RedeemScript op_min compressed
+                                                                                   else Nothing
+                                                                                                 
+                                       _              -> Nothing
      where
         getPubKeys scriptOp = do content          <- opContent scriptOp
                                  Compressed _ pub <- decodeToMaybe content
@@ -126,8 +116,6 @@ encodeInputPayPKH ts p = Script $ [ opPushData$encode' ts, opPushData$encode' p]
 
 
 -- TODO: Serialization for keys being compressed or not!
-
-
 decodeOutput :: forall net. BlockNetwork net => Script -> Maybe (Address net)
 decodeOutput (Script script) = case script of 
     
@@ -155,14 +143,14 @@ decodeInput  (Script script) = case script of
 
 -------------------------------------------------------------------------------------------------------------
 
-buildTx_ :: [Outpoint] -> [(Address net,BTC net)] -> Tx
+buildTx_ :: [Outpoint] -> [(Address net,BTC net)] -> Tx net
 buildTx_   xs ys = Tx 1 
                    [ TxIn  point (Script []) maxBound             | point        <- xs] -- TODO that maxBoundIsWrong!!!
                    [ TxOut (asSatoshis btc) (encodeOutput addr)   | (addr,btc)   <- ys] 
                    0
 
 ---------------------------------------------------------------------------------------------------------------
-decodeMultSig :: (BlockNetwork net) => Tx-> Script -> Maybe ([(Key Public net,Maybe TxSignature)],Int,RedeemScript net)
+decodeMultSig :: (BlockNetwork net) => Tx net -> Script -> Maybe ([(Key Public net,Maybe TxSignature)],Int,RedeemScript net)
 decodeMultSig tx (Script script) = case script of
                                      (OP__ 0 : rest)
                                    
@@ -185,7 +173,7 @@ decodeMultSig tx (Script script) = case script of
 
             checkSig_ msg ss p = let solutions = [ ts
                                                  | ts@(TxSignature s _) <- ss 
-                                                 , checkSig msg s (pub_key p)
+                                                 , checkSig msg s p
                                                  ]
 
                                   in case solutions of
@@ -200,29 +188,6 @@ decodeMultSig tx (Script script) = case script of
 
 
 
-
-
-
-
-
-
---checkSig key sig msg
---asMultisigWith :: RedeemScript net -> Script -> Maybe [Word256]
---asMultisigWith redeem (Script codes) = case codes of 
---                                         (OP__ 0 : rest) 
---                                           | (OP_PUSHDATA content _: signatures) <- reverse rest
---                                            , encode' redeem == content
---                                            , all pushData  signatures                        -> Just [ x
---                                                                                                      | OP_PUSHDATA  content _ <- signatures
---                                                                                                      , Just x                 <- [decodeToMaybe content] 
---                                                                                                      ] -- we might silently ignoring problems!!! -> modify!
-
-
---                                         []                                                   -> Just []
---                                         _                                                    -> Nothing
---            where
-
-
 dncodeInputPayPKH :: Script -> Maybe (Key Public a,TxSignature)
 dncodeInputPayPKH (Script script) = case script of 
                                      [OP_PUSHDATA payload1 _, OP_PUSHDATA payload2 _] 
@@ -234,4 +199,3 @@ dncodeInputPayPKH (Script script) = case script of
 instance (BlockNetwork net) => Binary (RedeemScript net) where
     get = get >>= maybe (fail "This script is not an standard multisg redeem script") return . interpret 
     put = put . generalScript
-

@@ -31,19 +31,22 @@ import Data.Binary
 
 import Network.EasyBitcoin.Internal.Keys (PrvKey(), PubKey(),derivePubKey_,xPrvID,xPubID,addPrvKeys_,addPubKeys_,Compressed(..))
 import Network.EasyBitcoin.Internal.Words
-import Network.EasyBitcoin.Internal.Serialization.ByteString
+import Network.EasyBitcoin.Internal.ByteString
 import Network.EasyBitcoin.Internal.HashFunctions(hmac512)
 import Network.EasyBitcoin.NetworkParams
 import Network.EasyBitcoin.Internal.InstanciationHelpers
 import Control.Monad
+import Data.Binary.Put
+import Data.Binary.Get
 import Control.Applicative
 type ChainCode    = Word256
 
 
--- | 'Key' represents public and private bitcoin keys. They can be used either as singleton keys or as hierarchical deterministic keys
+-- | 'Key's represents public and private bitcoin keys. 
+-- 
+--   'Key's can be used either as singleton keys or as hierarchical deterministic keys
 --   as defined on BIP0032. It supports compressed and uncompressed keys.
---   It has an additional phantom type to describe on which network this key is suppossed to be used (like on 
---   on the production network or on the testnet).
+--   It has an additional phantom type to describe on which network this key is suppossed to be used .
 --
 --   Its 'Read' instance understands the WIF format for singleton private keys, the BIP0032 format for private and public hierarchical 
 --   deterministic keys, and for singleton public keys it understands as hex characters representing a binary serialized OpenSSL public key.
@@ -51,7 +54,8 @@ type ChainCode    = Word256
 --   When reading a singleton key, no matter compressed or umcompressed, it is interpreted internally actually as root hierarchical deterministic key.
 --
 --   Its 'Show' instance works always as defined on BIP0032, treating always them as hierarchical even in those cases where they were originally represented
---   as singleton. In case you need to show it as singleton, you can use the functions 'showAsSingletonKey' and 'showAsSingletonKeyUncompressed'.
+--   as singleton. In case you need to show it as singleton, you can use the functions 'showAsSingletonKey' and 'showAsSingletonKeyUncompressed' from
+--   module 'Network.EasyBitcoin..Keys'.
 
 data Key (visibility::Visibility) net where
 
@@ -71,6 +75,7 @@ data Key (visibility::Visibility) net where
 
 deriving instance Eq (Key v net)
 
+-- | @'Key' 'Public' net@ represents public keys, @'Key' 'Private' net@ represents private keys.
 data Visibility = Private 
                 | Public
 
@@ -93,18 +98,18 @@ deriveHardened  n k = primeSubKey k (fromIntegral n)
 -- | Takes a hierarchical key keeping its ECSDA point or exponent, but setting it as root.
 -- It is equivalent to: 
 --
--- @ 
--- asDerivationRoot = read . showAsSingletonKey 
--- @ 
+--  
+-- prop> asDerivationRoot = read . showAsSingletonKey 
+--  
 deriveRoot :: Key v net -> Key v net 
 deriveRoot (ExtendedPrv _ _ _ _ k) = ExtendedPrv 0 0 0 0 k 
 deriveRoot (ExtendedPub _ _ _ _ k) = ExtendedPub 0 0 0 0 k 
 
 -- | Compares 2 keys not taking into account their hierarchical position.
 --
--- @
--- k1 === k2 = asDerivationRoot k1 == asDerivationRoot k2
--- @
+-- 
+-- prop> k1 === k2 = asDerivationRoot k1 == asDerivationRoot k2
+-- 
 (===)            :: Key v net -> Key v net -> Bool
 k1 === k2 = deriveRoot k1 == deriveRoot k2
 
@@ -298,67 +303,19 @@ instance (BlockNetwork net) => Binary (Key Private net) where
 
 
 
---getPrv prefix = do ver <- getWord32be
---                   unless (ver == prefix) $ fail $ "Get: Invalid version for extended private key"
---                   dep <- getWord8
---                   par <- getWord32be
---                   idx <- getWord32be
---                   chn <- get
---                   prv <- getPadPrvKey
---                   return $ ExtendedPrv dep par idx chn prv
-
---putPrv prefix k = do putWord32be prefix
---                     putWord8     $ xPrvDepth  k
---                     putWord32be  $ xPrvParent k
---                     putWord32be  $ xPrvIndex  k
---                     put          $ xPrvChain  k
---                     putPadPrvKey $ xPrvKey    k
-
-
-------------------
-
-
-
-
-
 
 instance (BlockNetwork net) => Read (Key Private net) where
    readsPrec = readsPrecAsBinary58
 
 
--- Problem!!! -- this won't work sometimes!!...make a fix!
--- Make this more efficient!!!
 instance (BlockNetwork net) => Read (Key Public  net) where
    readsPrec n s = readsPrecAsBinary58 n s ++ readsPrecAsBinary n s
 
-
-instance (BlockNetwork net) => ToField (Key Public  net) where
-    toField = genericWriteField
-
-
-instance (BlockNetwork net) => ToField (Key Private  net) where
-    toField = genericWriteField
-
-
-instance (BlockNetwork net) => FromField (Key Public  net) where
-    fromField = genericReadField
-
-
-instance (BlockNetwork net) => FromField (Key Private  net) where
-    fromField = genericReadField
-    --show = show_
-    -- where
-    --    show_ :: forall x. (BlockNetwork x) => Key Private net -> String
-    --    show_ key = let params = valuesOf :: Params x
                       
 ----------------------------------------------------------------------------------------------------------------------
--- modify all this....
 xPubFP :: Key Public a -> Word32
 xPubFP = fromIntegral . (`shiftR` 128) . xPubID . pub_key
 
 xPrvFP :: Key Private a -> Word32
 xPrvFP = fromIntegral . (`shiftR` 128) . xPrvID . prv_key
-
-
-
 
