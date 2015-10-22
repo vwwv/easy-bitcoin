@@ -58,11 +58,11 @@ module Network.EasyBitcoin( -- * Usage Example:
                           , escrowSignaturesFor
                           , simpleSignature                        
                           , checkInput
-                          , checkSignature
+                          , checkSignatureAt
                           , createSignature
                           , createSignatureAs
                      
-                     
+
                           , BTC()
                           , btc
                           , mBTC
@@ -117,7 +117,7 @@ import Network.EasyBitcoin.Transaction  ( transaction
                                         , escrowSignaturesFor
                                         , simpleSignature                        
                                         , checkInput
-                                        , checkSignature
+                                        , checkSignatureAt
                                         , createSignature
                                         , createSignatureAs
                                         , SigHash(..)

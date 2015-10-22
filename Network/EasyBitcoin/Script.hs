@@ -149,11 +149,11 @@ decodeInput  (Script script) = case script of
 
 
 
-dncodeInputPayPKH :: Script -> Maybe (Key Public a,TxSignature)
+dncodeInputPayPKH :: Script -> Maybe (TxSignature, Key Public a)
 dncodeInputPayPKH (Script script) = case script of 
                                      [OP_PUSHDATA payload1 _, OP_PUSHDATA payload2 _] 
                                       | Just sign <- decodeToMaybe payload1
-                                      , Just pubk <- decodeToMaybe payload2           -> Just $ (ExtendedPub 0 0 0 0 pubk, sign) 
+                                      , Just pubk <- decodeToMaybe payload2           -> Just $ (sign, ExtendedPub 0 0 0 0 pubk) 
                                      _                                                -> Nothing
 
 -------------------------------------------------------------------------------------------------------------
