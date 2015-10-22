@@ -1,14 +1,30 @@
-{-# LANGUAGE DataKinds, TypeFamilies #-}
+{-# LANGUAGE DataKinds, TypeFamilies, RankNTypes #-}
 
 module Network.EasyBitcoin.Transaction
-( transaction
-, SimpleTxError(..)
-, txInputs
-, txOutputs
-, checkSimple
-, checkSigs
-, unsignedTransaction
-) where
+    ( Outpoint (..)
+    , Txid()
+    , txid
+    , Tx ()
+    , transaction
+    , unsignedTransaction
+    , txOutputs
+    , txInputs
+    , checkInput
+
+    -- * Escrows and Signatures:
+    , RedeemScript(..)
+    , ScriptSig()
+    , TxSignature()
+    , signTxAt
+    , scriptSig
+    , escrowSignatures
+    , escrowSignaturesFor
+    , simpleSignature                        
+    , checkSignature
+    , createSignature
+    , createSignatureAs
+    , SigHash(..)
+    ) where
 
 import Network.EasyBitcoin.Internal.ByteString
 import Network.EasyBitcoin.Internal.Words
@@ -22,7 +38,7 @@ import Network.EasyBitcoin.Address
 import Network.EasyBitcoin.Keys
 import Network.EasyBitcoin.NetworkParams
 import Control.Applicative
-
+import Control.Lens
 --------------------------------------------------------------------------------
 -- | A full signed, transaction with 1 or more, outpoints to Pay2PKH, inputs and 1 or more
 --   outputs to Pay2SH and/or Pay2PH.
@@ -96,8 +112,8 @@ interpreted (Tx v inns outs lock)
                                                                                    --          )
                                                                                -- 
 
-txInputs::Tx net -> [Outpoint]
-txInputs (Tx v inns outs lock) = [ out | TxIn out script seq <- inns ]
+txInputs::Tx net -> [(Outpoint, ScriptSig )]
+txInputs (Tx v inns outs lock) = undefined -- [ out | TxIn out script seq <- inns ]
 
 txOutputs::(BlockNetwork net) => Tx net -> [(Maybe (Address net), BTC net )]
 txOutputs (Tx v inns outs lock) = [ (decodeOutput script, satoshis value )
@@ -176,7 +192,7 @@ decodeMultSig tx (Script script) = case script of
                                        , all pushData signatures                                       
                                        , let output_ = encodeOutput_  redeem
                                        
-                                       , msg <- txSigHash tx output_  0 (SigAll False)
+                                       , msg <- txSigHash tx output_  0 (SigAll False) -- fix this to be more general
 
                                        , Just signed <- sequence [ decodeToMaybe payload 
                                                                  | OP_PUSHDATA payload _ <- signatures
@@ -197,4 +213,109 @@ decodeMultSig tx (Script script) = case script of
 
             pushData (OP_PUSHDATA _ _) = True
             pushData _                 = False
+
+
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+--signTxAt :: Outpoint -> Key Private net -> Maybe (RedeemScript net) -> Tx net -> Tx net
+--signTxAt  out1  key redeem_  (Tx v inn out lock) =  Tx v (signInput<$>inn) out lock
+--      where 
+        
+--        signInput original@(TxIn prev (Script script) seq) 
+--                    | out1 == prev  = TxIn prev (Script$ update script) seq
+--                    | otherwise     = original
+        
+--        update script = case redeem_ of 
+--                         Nothing                              -> undefined 
+--                         Just new@(RedeemScript n keys)                 
+--                              | any (==derivePublic key) keys -> case script of 
+--                                                                 OP__ 0 : rest
+--                                                                    | OP_PUSHDATA content _: signatures       <- reverse rest
+--                                                                    , Just redeem@(RedeemScript n pks)        <- decodeToMaybe content
+--                                                                    , all pushData signatures                 
+--                                                                    ,  
+--                                                                 _              -> 
+
+--                              | otherwise                     -> []       
+
+-- Explain why might ignore...
+-- and how to "reconstruct" using other functions problematic transactions....
+newtype ScriptSig = ScriptSig Script
+
+-- explain the order!
+signTxAt :: Outpoint -> Maybe (RedeemScript net) -> Key Private net  -> Tx net ->Tx net
+signTxAt out redeem_ key tx = let signa = createSignature key tx 
+                               
+                               in case redeem_ of
+                                   -- change this branch for a more intuitive behaviour
+                                   Just redeem -> tx & scriptSig out . escrowSignaturesFor redeem %~ (signa:) 
+
+                                   Nothing     -> tx & scriptSig out .~ (signa, derivePublic key) ^. re simpleSignature  
+
+
+checkInput :: (BlockNetwork net) => Tx net -> Outpoint -> Address net ->  Bool
+checkInput tx out addr = case  [ sig_script | (out',sig_script) <- txInputs tx] of
+
+                          [script]
+
+                           | Just (sigs ,Just redeem@(RedeemScript n keys) )  <- script ^? escrowSignatures 
+                           , address redeem == addr 
+                           , n == length (filter (check sigs) keys)           -> True
+
+
+                           | Just (sig,key)                                   <- script ^? simpleSignature
+                           , address key == addr
+                           , checkSignature sig key tx                        -> True
+                      
+
+                          _                                                   -> False
+   where
+
+     check sigs key = any (\x->checkSignature x key tx) sigs
+
+
+getterRedeem:: Outpoint -> RedeemScript net -> Tx net ->  [TxSignature]
+getterRedeem = undefined
+
+setterRedeem:: Outpoint -> RedeemScript net -> Tx net -> [TxSignature] -> Tx net
+setterRedeem = undefined 
+
+
+escrowSignaturesFor :: RedeemScript net -> Prism' ScriptSig [TxSignature] 
+escrowSignaturesFor out redeem = undefined -- lensFromGetterSetter (getterRedeem out redeem) (setterRedeem out redeem)
+
+escrowSignatures :: Prism' ScriptSig ([TxSignature],Maybe (RedeemScript net))
+escrowSignatures = undefined
+
+
+
+getterSimple :: Outpoint -> Tx net ->  [TxSignature]
+getterSimple = undefined
+
+setterSimple:: Outpoint -> Tx net -> [TxSignature] -> Tx net
+setterSimple = undefined 
+
+
+simpleSignature :: Prism' ScriptSig (TxSignature, Key Public net)  
+simpleSignature = undefined -- lensFromGetterSetter (getterSimple out) (setterSimple out)
+
+
+scriptSig :: (Functor f) => Outpoint ->  ( ScriptSig -> f ScriptSig  ) -> (Tx net) -> f (Tx net) 
+scriptSig = undefined
+
+
+
+createSignatureAs :: SigHash -> Key Private net -> Tx net -> TxSignature
+createSignatureAs = undefined
+
+createSignature :: Key Private net -> Tx net -> TxSignature
+createSignature = undefined
+
+
+checkSignature :: TxSignature -> Key v net -> Tx net -> Bool
+checkSignature = undefined
+
+
+
 

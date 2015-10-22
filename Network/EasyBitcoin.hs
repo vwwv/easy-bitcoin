@@ -44,23 +44,25 @@ module Network.EasyBitcoin( -- * Usage Example:
                           , txid
                           , Tx ()
                           , transaction
+                          , unsignedTransaction
                           , txOutputs
                           , txInputs
-                          , checkSimple
 
-                          -- * Escrows:
+                          -- * Escrows and Signatures:
                           , RedeemScript(..)
-                          , unsignedTransaction
-                          , signTx
-                        --  , signedTx
-                        --  , formatSignatures
-
-                        --  , createSignature 
-                        --  , checkSignature
-                        --  , signatureAt (lens to create, modify etc... signatures)
-                        
-
-                          -- * Bitcoin Units:
+                          , ScriptSig()
+                          , TxSignature()
+                          , signTxAt
+                          , scriptSig
+                          , escrowSignatures
+                          , escrowSignaturesFor
+                          , simpleSignature                        
+                          , checkInput
+                          , checkSignature
+                          , createSignature
+                          , createSignatureAs
+                     
+                     
                           , BTC()
                           , btc
                           , mBTC
@@ -106,8 +108,19 @@ import Network.EasyBitcoin.Internal.Transaction
 import Network.EasyBitcoin.Transaction  ( transaction
                                         , txOutputs
                                         , txInputs
-                                        , checkSimple
                                         , unsignedTransaction
+                                        , ScriptSig()
+                                        , TxSignature()
+                                        , signTxAt
+                                        , scriptSig
+                                        , escrowSignatures
+                                        , escrowSignaturesFor
+                                        , simpleSignature                        
+                                        , checkInput
+                                        , checkSignature
+                                        , createSignature
+                                        , createSignatureAs
+                                        , SigHash(..)
                                         )
 
 import Network.EasyBitcoin.Keys         ( Key()
