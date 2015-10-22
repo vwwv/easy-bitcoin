@@ -275,6 +275,18 @@ checkInput tx out addr = case  [ sig_script | (out',sig_script) <- txInputs tx] 
      check sigs key = any (\x->checkSignature x key tx) sigs
 
 
+escrowSignaturesFor :: RedeemScript net -> Prism' ScriptSig [TxSignature] 
+escrowSignaturesFor out redeem = undefined -- lensFromGetterSetter (getterRedeem out redeem) (setterRedeem out redeem)
+
+
+simpleSignature :: Prism' ScriptSig (TxSignature, Key Public net)  
+simpleSignature = undefined -- lensFromGetterSetter (getterSimple out) (setterSimple out)
+
+
+escrowSignatures :: Prism' ScriptSig ([TxSignature],Maybe (RedeemScript net))
+escrowSignatures = undefined
+
+
 getterRedeem:: Outpoint -> RedeemScript net -> Tx net ->  [TxSignature]
 getterRedeem = undefined
 
@@ -282,11 +294,7 @@ setterRedeem:: Outpoint -> RedeemScript net -> Tx net -> [TxSignature] -> Tx net
 setterRedeem = undefined 
 
 
-escrowSignaturesFor :: RedeemScript net -> Prism' ScriptSig [TxSignature] 
-escrowSignaturesFor out redeem = undefined -- lensFromGetterSetter (getterRedeem out redeem) (setterRedeem out redeem)
 
-escrowSignatures :: Prism' ScriptSig ([TxSignature],Maybe (RedeemScript net))
-escrowSignatures = undefined
 
 
 
@@ -297,8 +305,6 @@ setterSimple:: Outpoint -> Tx net -> [TxSignature] -> Tx net
 setterSimple = undefined 
 
 
-simpleSignature :: Prism' ScriptSig (TxSignature, Key Public net)  
-simpleSignature = undefined -- lensFromGetterSetter (getterSimple out) (setterSimple out)
 
 
 scriptSig :: (Functor f) => Outpoint ->  ( ScriptSig -> f ScriptSig  ) -> (Tx net) -> f (Tx net) 
