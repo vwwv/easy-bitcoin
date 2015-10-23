@@ -226,7 +226,7 @@ txSigHash tx out i sh = do let newIn = buildInputs (txIn tx) out i sh
                                  $ do newOut <- buildOutputs (txOut tx) i sh
                                       let newTx = tx{ txIn = newIn, txOut = newOut }
                                       return $ doubleHash256 $ encode' newTx `BS.append` encodeSigHash32 sh
-                                      --error $ (bsToHex                       $ encode' newTx `BS.append` encodeSigHash32 sh)
+                                      -- error $ (bsToHex                       $ encode' newTx) -- `BS.append` encodeSigHash32 sh)
                                       --        ++ "  ------------------------  " ++
                                       --        (bsToHex.encode'.doubleHash256 $ encode' newTx `BS.append` encodeSigHash32 sh)
 

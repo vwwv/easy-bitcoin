@@ -35,6 +35,10 @@ module Network.EasyBitcoin( -- * Usage Example:
                           , derivePublic
                           , deriveHardened
                           , deriveRoot
+                          , showAsCompressedSingletonKey
+                          , showAsUncompressedSingletonKey
+                          , serializeCompressedSingleton
+                          , serializeUncompressedSingleton
                           , (===)
 
 
@@ -130,6 +134,10 @@ import Network.EasyBitcoin.Keys         ( Key()
                                         , deriveHardened
                                         , deriveRoot
                                         , (===)
+                                        , showAsCompressedSingletonKey
+                                        , showAsUncompressedSingletonKey
+                                        , serializeCompressedSingleton
+                                        , serializeUncompressedSingleton
                                         )
 
 import Network.EasyBitcoin.BitcoinUnits( BTC()
@@ -171,10 +179,11 @@ import Network.EasyBitcoin.BitcoinUnits( BTC()
     import Network.EasyBitcoin
     import Control.Monad(forever)
     import Network.HTTP.Client(HttpException(StatusCodeException))
-    import Network.Wreq(get,statusCode,responseBody)
+    import Network.Wreq(get,post,statusCode,responseBody)
     import Control.Exception(handleJust)
     import Control.Lens
     import Data.Aeson.Lens
+    import Data.Aeson
     import Safe
     import Control.Applicative
     import Control.Monad
@@ -226,7 +235,7 @@ import Network.EasyBitcoin.BitcoinUnits( BTC()
     sendToshi :: Tx TestNet -> IO ()
     sendToshi tx = do putStrLn $ "Sending tx: " ++ show (txid tx)
                       post (server ++ "/api/v0/transactions") (toJSON$show tx)
-
+                      return ()
 
     -- Querying and parsing the Toshi client about the unspent_outputs holds on the address defined by the private key 
     -- 91vaDsoxZACAZeGM89Y7dBnbTB7wrvtBeEkMTpL2sCgEtHf4RBn (that is mm8LjcoUYdPNKgWshGs7dueFu33aK56ckb).

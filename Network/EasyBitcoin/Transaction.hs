@@ -253,21 +253,21 @@ unsignedTransaction xs ys = Tx 1
 
 newtype ScriptSig = ScriptSig Script
 
--- explain the order!
--- TODO---> modify it ! 
+-- explain the order matter!
+-- explain how signing with the wrong address erase, and with the worn redeem is ignored..also, the problem signing several times!
 signTxAt :: (BlockNetwork net) => Outpoint -> Maybe (RedeemScript net) -> Key Private net  -> Tx net ->Tx net
-signTxAt out redeem_ key tx = undefined
---signTxAt out redeem_ key tx = let signa = createSignature key tx 
+signTxAt out redeem_ key tx = let signa = createSignature tx out redeem_ key :: TxSignature 
                                
---                               in case redeem_ of
---                                   -- change this branch for a more intuitive behaviour
---                                   Just redeem -> tx & scriptSig out . escrowSignaturesFor redeem %~ (signa:) 
+                               in case redeem_ of
+                                   -- change this branch for a more intuitive behaviour
+                                   Just redeem -> tx & scriptSig out . escrowSignaturesFor redeem %~ (signa:) 
 
---                                   Nothing     -> tx & scriptSig out .~ (signa, derivePublic key) ^. re simpleSignature  
+                                   Nothing     -> tx & scriptSig out .~ 
+                                                      ( (signa, derivePublic key) ^. re simpleSignature :: ScriptSig)  
 
 
 checkInput :: (BlockNetwork net) => Tx net -> Outpoint -> Address net ->  Bool
-checkInput tx out addr = case  [ sig_script | (out',sig_script) <- txInputs tx] of
+checkInput tx out addr = case  [ sig_script | (out',sig_script) <- txInputs_ tx] of
 
                           [script]
 
@@ -376,11 +376,11 @@ createSignatureAs ::(BlockNetwork net) => SigHash -> Tx net -> Outpoint -> Maybe
 createSignatureAs sh tx out redeem_ key = let msg = createMessage_ sh tx out (maybe (Left key) Right redeem_)
                                            in TxSignature (detSignMsg msg key) sh
 
-
+-- Here is the problem!
 createMessage_ :: (BlockNetwork net) => SigHash -> Tx net -> Outpoint -> Either (Key v net) (RedeemScript net) ->  Word256
-createMessage_ sh tx@(Tx _ inn _ _) out fromInn = txSigHash tx (encodeOutput address_) i sh
+createMessage_ sh tx@(Tx _ inn _ _) out fromInn = txSigHash tx output i sh
      where
-        address_ = either address address fromInn
+        output   = either (encodeOutput.address) generalScript fromInn  
         i = case [ i | (i, TxIn out' _ _) <- zip [0..] inn , out' == out] of 
                   [x] -> x 
                   _   -> 0
