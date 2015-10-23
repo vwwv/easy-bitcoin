@@ -116,7 +116,7 @@ signTxAt :: (BlockNetwork net) =>  Tx net                   -- ^ Transaction to 
                                                             --   escrow.
                                -> Key Private net           -- ^ Key to sign
                                -> Tx net
-signTxAt out redeem_ key tx = let signa = createSignature tx out redeem_ key :: TxSignature 
+signTxAt tx out redeem_ key  = let signa = createSignature tx out redeem_ key :: TxSignature 
                                
                                in case redeem_ of
                                    -- change this branch for a more intuitive behaviour
