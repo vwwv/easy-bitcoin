@@ -90,8 +90,6 @@ unsafeSignMsg h d (k,p) = do let (x,_) = getAffine p
 
 
 
---checkSig = undefined
-
 
 -- Section 4.1.4 http://www.secg.org/download/aid-780/sec1-v2.pdf
 -- | Verify an ECDSA signature
@@ -136,51 +134,20 @@ instance Binary Signature where
     put (Signature _ 0) = error "0 is an invalid s value in a Signature"
     
     put (Signature r s) = do putWord8 0x30
-                             let c = runPut' $ put r >> put s -- this is wrong!!!!!!!!!
+                             let c = runPut' $ put r >> put s 
                              putWord8 (fromIntegral $ BS.length c)
                             -- error .show  $  (r,s)
                              putByteString c
 
 
--- Efficiently compute r1*p1 + r2*p2
+
 shamirsTrick :: FieldN -> Point -> FieldN -> Point -> Point
 shamirsTrick r1 p1 r2 p2 = addPoint (mulPoint r1 p1) (mulPoint r2 p2)
---shamirsTrick r1 p1 r2 p2 = go r1 r2
---  where 
---    q      = addPoint p1 p2
---    go 0 0 = Nothing -- error "TODO: think about this" --InfPoint
---    go a b 
---        | ea && eb  = Just $ b2
---        | ea        = Just $ addPoint b2 p2
---        | eb        = Just $ addPoint b2 p1
---        | otherwise = Just $ addPoint b2 q
---      where 
---        b2 = doublePoint <$> go (a `shiftR` 1) (b `shiftR` 1)
---        ea = even a
---        eb = even b
 
 
 
 ------------------------------------------------------------------------------------------------------------------------------
 
-
-{-
--- Efficiently compute r1*p1 + r2*p2
-shamirsTrick :: FieldN -> Point -> FieldN -> Point -> Point
-shamirsTrick r1 p1 r2 p2 = go r1 r2
-   where
-        q = addPoint p1 p2
-        go 0 0 = InfPoint
-        go a b
-            | ea && eb = b2
-            | ea = addPoint b2 p2
-            | eb = addPoint b2 p1
-            | otherwise = addPoint b2 q
-          where
-            b2 = doublePoint $ go (a `shiftR` 1) (b `shiftR` 1)
-            ea = even a
-            eb = even b
--}
 
 
 quadraticResidue :: FieldP -> [FieldP]
@@ -191,40 +158,6 @@ quadraticResidue x = guard (y^(2 :: Int) == x) >> [y, (-y)]
 
 
 
-
-
-
-
----------------------------------------------------------------------------
-
-------------------------------------------------------------------------------
-
-
----- delete this!
---instance Binary PointWithCommpression where
-    
---    -- check this works!!!
---    get = do index <- getWord8
---             case index of 
---                2 -> PWC Compressed   <$> (compressedWith True  =<< get)
---                3 -> PWC Compressed   <$> (compressedWith False =<< get) 
---                4 -> PWC NoCompressed <$> (makePoint  <$>  get  <*> get)
---                _ -> fail $ "Get: Invalid public key encoding: " 
-
---        where
---            compressedWith isEven x = let a  = x ^ (3 :: Integer) + (curveA * x) + curveB
---                                          ys = filter ((== isEven) . even) (quadraticResidue a)
-                                   
---                                       in case ys of
---                                           y:_ ->  return $ makePoint x y 
---                                           _   ->  fail   $ "No ECC point for x = "  ++ (show x)
-
---    put (PWC comp point) = let (x,y) = getAffine point 
---                            in case comp of
---                                Compressed   
---                                   | even y     -> putWord8 2 >> put x
---                                   | otherwise  -> putWord8 3 >> put x
---                                NoCompressed    -> putWord8 4 >> put x >> put y
 
 
 

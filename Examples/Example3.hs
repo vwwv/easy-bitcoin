@@ -72,9 +72,9 @@ valid_alice_tx =  (txInputs signed_by_alice  == [utxo])
 
 valid_alice_signature = case signed_by_alice ^? scriptSig utxo . escrowSignaturesFor redeemScript of
                           Just [sign]
-                            |  checkSignatureAt utxo signed_by_alice (Right redeemScript) sign -> True
+                            | checkSignatureAt signed_by_alice utxo (Just redeemScript) sign alice_pub_key -> True
 
-                          _                                                                    -> False
+                          _                                                                                -> False
 
 -- As everything is ok, Bob signs as well the transaction:
 
@@ -96,6 +96,18 @@ signed_by_bob_then_alice = signed_by_alice_then_bob & scriptSig utxo . escrowSig
 --
 
 main = print signed_by_bob_then_alice
+
+
+
+
+-------------------------
+
+transaction_ = transaction [(utxo,alice_prv_key)] (address alice_prv_key, btc 200.30) []
+unsigned_    = unsignedTransaction [utxo] [(address alice_prv_key, btc 200.30)]
+
+transaction_2 = signTxAt utxo Nothing alice_prv_key unsigned_
+
+-- 01000000014125d067bff3fa4746dfb4cbf273ebb2d09a112a15b25be6316dc5369b5c084b010000006b483045022100f24e1ac2c2816fe29a16a2aca8f9c22c6f0bf66a728cef0586b128a462aaa610022022957ee2fd135ea60e0033a159c73adb27e2685f4eb8e925b910db3a8e5ae7cb01210250232d54ed7b5d6aeb43fc465247b86a949b35c69872d826803e5a894a6a3236ffffffff01808be1a9040000001976a914a13e2a5b5a91f2e024a0a32939af2f974333fc6188ac00000000
 
 
 

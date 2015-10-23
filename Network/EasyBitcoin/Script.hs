@@ -1,4 +1,4 @@
-{-# LANGUAGE  DataKinds, ScopedTypeVariables #-}
+{-# LANGUAGE  DataKinds, ScopedTypeVariables, GeneralizedNewtypeDeriving #-}
 module Network.EasyBitcoin.Script 
  where
 
@@ -48,6 +48,15 @@ import Network.EasyBitcoin.BitcoinUnits
 --    * number of requiered signatures.
 --    * public keys allowed to use for signing.
 data RedeemScript  net = RedeemScript Int [Key Public net]  deriving (Eq)
+
+
+newtype ScriptSig = ScriptSig Script deriving(Eq,Ord,Binary)
+
+instance Show ScriptSig where
+  show (ScriptSig x) = showAsBinary x 
+
+instance Read ScriptSig where
+  readsPrec n = fmap (\(a,b)->(ScriptSig a,b)) . readsPrecAsBinary n 
 
 
 instance (BlockNetwork net) => Show (RedeemScript net) where

@@ -31,7 +31,7 @@ import Control.Applicative((<$>))
 
 
 newtype Script = Script{scriptOps::[ScriptOp]} 
-                 deriving (Eq, Show, Read)
+                 deriving (Eq, Show, Ord,Read)
 
 
 -- | Data type representing all of the operators allowed inside a 'Script'.
@@ -143,7 +143,7 @@ data ScriptOp   = OP_PUSHDATA { pushContent :: !BS.ByteString
                 | OP_PUBKEYHASH
                 | OP_PUBKEY
                 | OP_INVALIDOPCODE  !Word8 
-                deriving (Show, Read, Eq)
+                deriving (Show, Read, Ord,Eq)
 
 
 
@@ -160,7 +160,7 @@ data PushDataType = OPCODE      -- ^ The next opcode bytes is data to be pushed 
                                 -- | The next four bytes contains the number of bytes to be pushed onto
                                 -- the stack
                   | OPDATA4
-                  deriving (Show, Read, Eq)
+                  deriving (Show, Ord,Read, Eq)
 
 
 
