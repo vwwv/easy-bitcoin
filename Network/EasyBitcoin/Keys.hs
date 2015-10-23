@@ -19,7 +19,7 @@ module Network.EasyBitcoin.Keys
  , showAsUncompressedSingletonKey
  , serializeCompressedSingleton
  , serializeUncompressedSingleton
- , decodeCheckingCompression
+ -- , decodeCheckingCompression
  , (===)
  ) where
 
@@ -46,16 +46,15 @@ type ChainCode    = Word256
 -- 
 --   'Key's can be used either as singleton keys or as hierarchical deterministic keys
 --   as defined on BIP0032. It supports compressed and uncompressed keys.
---   It has an additional phantom type to describe on which network this key is suppossed to be used .
+--   It has an additional phantom type to describe on which network this key is supposed to be used .
 --
 --   Its 'Read' instance understands the WIF format for singleton private keys, the BIP0032 format for private and public hierarchical 
---   deterministic keys, and for singleton public keys it understands as hex characters representing a binary serialized OpenSSL public key.
+--   deterministic keys, and for singleton public keys it also understands  hexadecimal representation of binary serialized OpenSSL public keys.
 --
---   When reading a singleton key, no matter compressed or umcompressed, it is interpreted internally actually as root hierarchical deterministic key.
+--   When parsing a key, if no information about its hierarchal position is available, for example when reading from a WIF format, it is consider to be root.
 --
---   Its 'Show' instance works always as defined on BIP0032, treating always them as hierarchical even in those cases where they were originally represented
---   as singleton. In case you need to show it as singleton, you can use the functions 'showAsSingletonKey' and 'showAsSingletonKeyUncompressed' from
---   module 'Network.EasyBitcoin..Keys'.
+--   Its 'Show' instance works always as defined on BIP0032 In case you need to show it as singleton, you can use
+--   the functions 'showAsSingletonKey' and 'showAsSingletonKeyUncompressed'.
 
 data Key (visibility::Visibility) net where
 
@@ -86,20 +85,26 @@ derive n key     = case key of
                     r@(ExtendedPub _ _ _ _ _) -> pubSubKey r (fromIntegral n)
 
 -- | Transform a private key into a public key, or does nothing if it was already a public key.
+--
+-- prop> derive n . derivePublic = derivePublic . derive n 
+--
 derivePublic     :: Key v net -> Key Public net
 derivePublic  k  = case k of 
                      r@(ExtendedPub _ _ _ _ _) -> r 
                      ExtendedPrv d p i c k     -> ExtendedPub d p i c (derivePubKey_ k)
 
+
+
 -- | Like 'derive' but derives a hardened child. Hardened child can only be derived from private keys.
 deriveHardened   :: Int -> Key Private net -> Key Private net 
 deriveHardened  n k = primeSubKey k (fromIntegral n)
 
+
 -- | Takes a hierarchical key keeping its ECSDA point or exponent, but setting it as root.
+--   
 -- It is equivalent to: 
---
 --  
--- prop> asDerivationRoot = read . showAsSingletonKey 
+-- prop> deriveRoot = read . showAsSingletonKey 
 --  
 deriveRoot :: Key v net -> Key v net 
 deriveRoot (ExtendedPrv _ _ _ _ k) = ExtendedPrv 0 0 0 0 k 
@@ -108,10 +113,14 @@ deriveRoot (ExtendedPub _ _ _ _ k) = ExtendedPub 0 0 0 0 k
 -- | Compares 2 keys not taking into account their hierarchical position.
 --
 -- 
--- prop> k1 === k2 = asDerivationRoot k1 == asDerivationRoot k2
+-- prop> k1 === k2    =  deriveRoot k1 == deriveRoot k2
 -- 
+
 (===)            :: Key v net -> Key v net -> Bool
 k1 === k2 = deriveRoot k1 == deriveRoot k2
+
+
+
 
 -- | Show the key as a singleton compressed key as defined by the WIF format for private keys and
 --   as hexadecimal representation of the OpenSSL binary serialization for public keys. 
@@ -140,8 +149,8 @@ serializeUncompressedSingleton key  = case key of
                     ExtendedPub _ _ _ _ k -> encode' $ Compressed False k
 
 
-decodeCheckingCompression :: (Visibility_ v,BlockNetwork net) => BS.ByteString -> Maybe (Key v net,Bool)
-decodeCheckingCompression = decodeCheckingCompression_
+--decodeCheckingCompression :: (Visibility_ v,BlockNetwork net) => BS.ByteString -> Maybe (Key v net,Bool)
+--decodeCheckingCompression = decodeCheckingCompression_
 
 
 class Visibility_ (a::Visibility) where
@@ -209,10 +218,10 @@ instance (BlockNetwork net) => Show (Key Private net) where
     show     = showAsBinary58
 
 instance (BlockNetwork net) => Show (Key Public net) where
-    show     = showAsBinary58 -- change this!!
+    show     = showAsBinary58
 
 
--- important!!! -> on the instantiation make sure it consumes all input!!!
+
 instance (BlockNetwork net) => Binary (Key Public  net) where
     
     get      = get_aux 

@@ -41,7 +41,6 @@ import Network.EasyBitcoin.Internal.HashFunctions
 import Network.EasyBitcoin.NetworkParams
 import Network.EasyBitcoin.BitcoinUnits
 
-import Data.Aeson
 
 
 
@@ -56,11 +55,6 @@ instance (BlockNetwork net) => Show (RedeemScript net) where
 
 instance (BlockNetwork net) => Read (RedeemScript net) where
   readsPrec = readsPrecAsBinary
-
-
-instance (BlockNetwork net) => ToJSON (RedeemScript net) where
-  toJSON = toJSON.show
-
 
 
 generalScript (RedeemScript minKeys keys) = Script $  [ op minKeys ] 

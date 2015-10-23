@@ -57,10 +57,8 @@ import Data.Maybe(fromMaybe)
 
  
 --------------------------------------------------------------------------------
--- | Bitcoin transaction. Its 'Binary' instance follow the p2p bitcoin protocol format.
---  For its 'Read' and 'Show' instances it uses the hexadecimal char representation of its 'Binary' instance.
---
--- When parsed, only syntax validation is performanced, particulary, signature validation is not computed.
+-- | Bitcoin transaction. 
+-- When parsed, only syntax validation is performanced, particulary, signature validation is not.
 
 data Tx net = Tx   { txVersion      :: Int -- !Word32
                    , txIn           :: [TxIn]
@@ -145,18 +143,22 @@ instance Binary TxIn where
 
 
 
--- | Represents a reference to a transaction output, that is, a transaction hash ('Txid') plus the outvector number
---   of that output. 
+-- | Represents a reference to a transaction output, that is, a transaction hash ('Txid') plus the output position 
+--   within the output vector of the referenced transaction.
 data Outpoint          = Outpoint Txid Int deriving (Eq,Show,Ord,Read)
+
 
 -- | A transaction identification as a hash of the transaction. 2 transaction are consider different if they have different
 --   'Txid's. In some cases, it might be possible for a peer to modify a transaction into an equivalent one having a different
 --   'Txid', for futher info read about the "transaction-malleability-issue".
 
 --------------------------------------------------------------------------------------------------------------------------------------
+-- | A transaction hash used to indentify a transaction. Notice that due to the "transaction-malleability-issue", it is possible for an adversary,
+-- to derivated a new equivalent transaction with a different Txid.
 data Txid              = Txid{ txidHash :: Word256} deriving (Eq,Ord)
 
 
+-- | Compute the 'Txid' of a given transaction.
 txid:: Tx net ->  Txid
 txid = Txid . fromIntegral . doubleHash256 . encode' 
 

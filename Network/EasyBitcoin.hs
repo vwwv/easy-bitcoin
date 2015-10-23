@@ -10,7 +10,7 @@ Stability   : experimental
 EasyBitcoin is a simple haskell library providing types and class-instances for bitcoin related code; 
 it also include an small set of functions to handle addresses, transactions and escrows.
 
-Some small programs as examples can be found at <http://example.com label> .
+Some small examples can be found <https://github.com/vwwv/easy-bitcoin/tree/master/Examples here> .
 
 -}
 
@@ -146,29 +146,6 @@ import Network.EasyBitcoin.BitcoinUnits( BTC()
 
 {- $example
 
-   TODO:
-
-    - explain examples of btc parsing looking the same
-    - laws of derivation
-    - show how parsing can make a node root!
-    -  -- TODO that maxBoundIsWrong!!! ( on unsignedTransaction transaction!! file...)
-
-    - Add warning!
-           check: 
-                          , txOutputs
-                          , txInputs
-                          , checkSimple
-
-                          -- * Escrows:
-                        --  , RedeemScript(..)
-                        --  , unsignedTransaction
-                        --  , signTx
-                        --  , signedTx
-                        --  , formatSignatures
-
-                        --  , createSignature 
-                        --  , checkSignature
-                        --  , signatureAt 
 
 
    As a toy example, let's imagine the following scenario:
@@ -223,8 +200,8 @@ import Network.EasyBitcoin.BitcoinUnits( BTC()
     --       - if not enough funds holds on the unspent outpoints:
     --           continue next iteration.
     --       - else:
-    --           combining all avaliable outpoints into a transaction to miHWju2dzq9RcUPESzYBgVWa3W3swTXtLo and mvsXpubWQSw2dK2L85iYFppnNjGm439aWK
-    --           send this transaction to Toshi to be broadcasted into the network.
+    --           combining all available outpoints into a transaction to miHWju2dzq9RcUPESzYBgVWa3W3swTXtLo and mvsXpubWQSw2dK2L85iYFppnNjGm439aWK
+    --           send this transaction to Toshi to be broad-casted into the network.
 
     main::IO ()
     main = do putStrLn $ "Rebrodcasting from " ++ show (address incoming) ++ " to "++ show outgoingA ++ " and " ++ show outgoingB

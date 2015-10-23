@@ -50,6 +50,8 @@ data SimpleTx      net = SimpleTx [(Outpoint, (Key Public net, TxSignature))]
                                   [(Address net,BTC net)]
                          deriving Show
 
+
+-- | Creates a transaction ready to be broadcasted.
 transaction::(BlockNetwork net) 
            => [(Outpoint, Key Private net)]  -- ^ Transaction's inputs 
            -> (Address net,BTC net)          -- ^ Transaction's output
@@ -70,11 +72,11 @@ simpleTx  ins x xs = let unsigned_tx = unsignedTransaction  (map fst ins) (x:xs)
                                    (x:xs)
 
 
-data SimpleTxError = SimpleTx_InvalidSignature
-                   | SimpleTx_NotSimpleTxPattern
-                   | SimpleTx_StrangeVersion
-                   | SimpleTx_UseLockTime Int 
-                   deriving Show
+--data SimpleTxError = SimpleTx_InvalidSignature
+--                   | SimpleTx_NotSimpleTxPattern
+--                   | SimpleTx_StrangeVersion
+--                   | SimpleTx_UseLockTime Int 
+--                   deriving Show
  
 genericTx (SimpleTx   inns outs) = Tx 1  
                                      [ TxIn out (encodeInputPayPKH signat (pub_key key) ) maxBound | (out,(key,signat))<- inns]
@@ -112,9 +114,15 @@ genericTx (SimpleTx   inns outs) = Tx 1
 --                                                                                   --          )
 --                                                                               -- 
 
-txInputs::Tx net -> [(Outpoint, ScriptSig )]
-txInputs (Tx v inns outs lock) = [ (out, ScriptSig script) | TxIn out script seq <- inns ]
+-- | Returns those 'Outpoint's used by the transaction's inputs
+txInputs::Tx net -> [Outpoint]
+txInputs (Tx _ inns _ _) = [ out | TxIn out _ _ <- inns ]
 
+txInputs_::Tx net -> [(Outpoint, ScriptSig )]
+txInputs_ (Tx v inns outs lock) = [ (out, ScriptSig script) | TxIn out script seq <- inns ]
+
+
+-- | Return's the amount spent for each transaction's output and its address in case it can be parsed (Pay2PKH or Pay2SH).
 txOutputs::(BlockNetwork net) => Tx net -> [(Maybe (Address net), BTC net )]
 txOutputs (Tx v inns outs lock) = [ (decodeOutput script, satoshis value )
                                   | TxOut value script <- outs
@@ -172,7 +180,8 @@ simpletTxSignatureCheck i key out tx (TxSignature sig sh)
 
 --                    in detSignTx rawTx ins
 
- -- TODO that maxBoundIsWrong!!!
+
+-- | Return a transaction without signatures so it can be signed later on or by other participants (in case of multisignature escrows).
 unsignedTransaction :: [Outpoint] -> [(Address net,BTC net)] -> Tx net
 unsignedTransaction xs ys = Tx 1 
                             [ TxIn  point (Script []) maxBound             | point        <- xs] 
@@ -181,38 +190,38 @@ unsignedTransaction xs ys = Tx 1
 
 ------------------------------------------------------------------------------------------------------------------------------
 
-decodeMultSig :: (BlockNetwork net) => Tx net -> Script -> Maybe ([(Key Public net,Maybe TxSignature)],Int,RedeemScript net)
-decodeMultSig tx (Script script) = case script of
-                                     (OP__ 0 : rest)
+--decodeMultSig :: (BlockNetwork net) => Tx net -> Script -> Maybe ([(Key Public net,Maybe TxSignature)],Int,RedeemScript net)
+--decodeMultSig tx (Script script) = case script of
+--                                     (OP__ 0 : rest)
                                    
-                                       | (OP_PUSHDATA content _: signatures)             <- reverse rest
+--                                       | (OP_PUSHDATA content _: signatures)             <- reverse rest
                                    
-                                       , Just redeem@(RedeemScript n pks)                <- decodeToMaybe content 
+--                                       , Just redeem@(RedeemScript n pks)                <- decodeToMaybe content 
                                    
-                                       , all pushData signatures                                       
-                                       , let output_ = encodeOutput_  redeem
+--                                       , all pushData signatures                                       
+--                                       , let output_ = encodeOutput_  redeem
                                        
-                                       , msg <- txSigHash tx output_  0 (SigAll False) -- fix this to be more general
+--                                       , msg <- txSigHash tx output_  0 (SigAll False) -- fix this to be more general
 
-                                       , Just signed <- sequence [ decodeToMaybe payload 
-                                                                 | OP_PUSHDATA payload _ <- signatures
-                                                                 ]                          
+--                                       , Just signed <- sequence [ decodeToMaybe payload 
+--                                                                 | OP_PUSHDATA payload _ <- signatures
+--                                                                 ]                          
 
-                                       , sigList <- checkSig_ msg signed <$> pks      -> Just (sigList,n,redeem)
-                                     _                                                -> Nothing
-        where
+--                                       , sigList <- checkSig_ msg signed <$> pks      -> Just (sigList,n,redeem)
+--                                     _                                                -> Nothing
+--        where
 
-            checkSig_ msg ss p = let solutions = [ ts
-                                                 | ts@(TxSignature s _) <- ss 
-                                                 , checkSig msg s p
-                                                 ]
+--            checkSig_ msg ss p = let solutions = [ ts
+--                                                 | ts@(TxSignature s _) <- ss 
+--                                                 , checkSig msg s p
+--                                                 ]
 
-                                  in case solutions of
-                                        ts:_  -> (p, Just ts)
-                                        []    -> (p, Nothing)
+--                                  in case solutions of
+--                                        ts:_  -> (p, Just ts)
+--                                        []    -> (p, Nothing)
 
-            pushData (OP_PUSHDATA _ _) = True
-            pushData _                 = False
+--            pushData (OP_PUSHDATA _ _) = True
+--            pushData _                 = False
 
 
 
@@ -239,8 +248,9 @@ decodeMultSig tx (Script script) = case script of
 
 --                              | otherwise                     -> []       
 
--- Explain why might ignore...
--- and how to "reconstruct" using other functions problematic transactions....
+
+
+
 newtype ScriptSig = ScriptSig Script
 
 -- explain the order!

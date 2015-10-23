@@ -19,7 +19,6 @@ import Network.EasyBitcoin.NetworkParams
 import qualified Data.ByteString as BS
 import Data.Char(isSpace)
 import Data.Word
-import Data.Aeson
 
 -- | Bitcoin address, either Pay2PKH or Pay2SH
 data Address       net = PubKeyAddress { getAddrHash :: Word160 }
@@ -33,32 +32,35 @@ data Address       net = PubKeyAddress { getAddrHash :: Word160 }
 class Addressable add where
    address :: (BlockNetwork net) => add net -> Address net  
 
-
-
+-- | As addresses are obtained from public keys hashes, when deriving from a private key, it will first get derived to public 
+--
+-- prop> address key  = address (derivePublic key)
+--  
+-- Addresses derived from Keys will always be Pay2PKH addresses:
+--
+-- prop> isPay2PKH (address key) = True
 instance Addressable (Key v) where
     address = PubKeyAddress . hash160 . hash256BS . encode' . Compressed True. pub_key . derivePublic
  
 
--- | Derive an address from a key treating it as uncompressed.
+-- | Derive an address from a key as uncompressed.
 addressFromUncompressed:: Key v net -> Address net
 addressFromUncompressed = PubKeyAddress . hash160 . hash256BS . encode' . Compressed False . pub_key . derivePublic
 
 
-instance (BlockNetwork net) => ToJSON (Address net) where
-  toJSON = toJSON.show
 
-
-
+-- | Address was derived from an script hash. Though these addresses can represent the hash of any script, only redeem
+--   scripts for multi-signature are currently supported.
 isPay2SH  :: Address net -> Bool
 isPay2SH  addr = case addr of 
                   PubKeyAddress _ -> True
                   _               -> False
 
+-- | Address was derived from a public key hash.
 isPay2PKH :: Address net -> Bool
 isPay2PKH addr = case addr of 
                   ScriptAddress _ -> True
                   _               -> False
-
 ---------------------------------------------------------------------------------------------------------------------------------
 instance (BlockNetwork net ) => Show (Address net) where
     show = show_aux
@@ -86,41 +88,6 @@ instance (BlockNetwork net ) => Read (Address net) where
 
 
 ----------------------------------------------------------------------------------------------------------------------------------
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

@@ -35,6 +35,7 @@ library
                        Network.EasyBitcoin.Internal.Script,
                        Network.EasyBitcoin.Internal.Signatures,
                        Network.EasyBitcoin.Internal.Transaction
+                       
 
   other-extensions:    DataKinds, GADTs, TypeFamilies, EmptyDataDecls, ScopedTypeVariables, KindSignatures, StandaloneDeriving, PolyKinds, FlexibleInstances, OverloadedStrings, GeneralizedNewtypeDeriving, FlexibleContexts
   
@@ -48,6 +49,7 @@ library
                        aeson >= 0.6,
                        byteable >= 0.1,
                        deepseq >= 1.0,
+                       lens    >= 4.3,
                        cryptohash >= 0.11
   -- hs-source-dirs:      
   default-language:    Haskell2010
