@@ -56,6 +56,7 @@ module Network.EasyBitcoin( -- * Usage Example:
                           , RedeemScript(..)
                           , ScriptSig()
                           , TxSignature()
+                          , SigHash(..)
                           , signTxAt
                           , scriptSig
                           , escrowSignatures

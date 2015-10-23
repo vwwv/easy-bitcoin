@@ -109,9 +109,13 @@ unsignedTransaction xs ys = Tx 1
 ------------------------------------------------------------------------------------------------------------------------------
 
 
--- explain the order matter!
--- explain how signing with the wrong address erase, and with the worn redeem is ignored..also, the problem signing several times!
-signTxAt :: (BlockNetwork net) => Outpoint -> Maybe (RedeemScript net) -> Key Private net  -> Tx net ->Tx net
+-- | Sign an specific input of a transaction.
+signTxAt :: (BlockNetwork net) =>  Tx net                   -- ^ Transaction to sign 
+                               -> Outpoint                  -- ^ Reference the input within the transaction to be signed.
+                               -> Maybe (RedeemScript net)  -- ^ If using to see multisig-escrow, this should contain the redeemScript defining that
+                                                            --   escrow.
+                               -> Key Private net           -- ^ Key to sign
+                               -> Tx net
 signTxAt out redeem_ key tx = let signa = createSignature tx out redeem_ key :: TxSignature 
                                
                                in case redeem_ of
@@ -121,7 +125,11 @@ signTxAt out redeem_ key tx = let signa = createSignature tx out redeem_ key :: 
                                    Nothing     -> tx & scriptSig out .~ 
                                                       ( (signa, derivePublic key) ^. re simpleSignature :: ScriptSig)  
 
-
+-- | Check an specific input of a transaction is fully signed, it understand both, Pay2PKH and Pay2SH for multisig-escrow. for other kinds of
+--   transaction it will return always 'False'.
+--
+--   In case of multisig-escrow, it also check signatures use the right order defined on the RedeemScript.
+--
 checkInput :: (BlockNetwork net) => Tx net -> Outpoint -> Address net ->  Bool
 checkInput tx out addr = case  [ sig_script | (out',sig_script) <- txInputs_ tx] of
 
@@ -148,21 +156,39 @@ checkInput tx out addr = case  [ sig_script | (out',sig_script) <- txInputs_ tx]
 
 
 
--- Todo, move the one not mentioning transactions to the Script module!
+-- | A Traversal focusing on the ScriptSig of a transaction at a particular input referenced by an 'Outpoint' 
+--   Notice, a valid transaction will always have exactly 0 or 1 scriptSig for a given 'Outpoint'; invalid transactions
+--   might have more than one.
+scriptSig :: Outpoint ->  Traversal' (Tx net) ScriptSig -- Lens' (Tx net) ScriptSig 
+scriptSig out f (Tx v inn txOuts lock) = let appF (TxIn out' script seq) 
+                                               | out' == out = (\(ScriptSig script') -> TxIn out' script' seq) <$> f (ScriptSig script ) 
+                                               | otherwise   = pure (TxIn out' script seq) 
+                                          
+                                          in (\x -> Tx v x txOuts lock ) <$> traverse appF inn  
+
+
+-- | The prism successes when the scriptSig is either empty, partially or full signed escrow-multisig; unless it is empty, 
+--   it will also require than the redeem used by the scriptSig is an specific one.
 escrowSignaturesFor :: (BlockNetwork net) => RedeemScript net -> Prism' ScriptSig [TxSignature] 
 escrowSignaturesFor redeem = prism (fromEscrowFor redeem) (toEscrowFor redeem) 
 
-simpleSignature :: Prism' ScriptSig (TxSignature, Key Public net)  
-simpleSignature = prism fromSimple toSimple
 
+-- | The prism successes when the scriptSig is either empty, partially or full signed escrow-multisig.
 escrowSignatures ::(BlockNetwork net) => Prism' ScriptSig ([TxSignature],Maybe (RedeemScript net))
 escrowSignatures = prism fromEscrow toEscrow
 
-fromSimple :: (TxSignature, Key Public net) -> ScriptSig
-fromSimple (sig,key) = ScriptSig $ encodeInputPayPKH sig (pub_key key)
 
-toSimple:: ScriptSig -> Either ScriptSig (TxSignature, Key Public net)
-toSimple x@(ScriptSig script) = maybe (Left x) Right $ dncodeInputPayPKH script 
+
+-- | The prism successes when the scriptSig is from an already signed Pay2PKH, it does not check whether this signature is valid or not.
+simpleSignature :: Prism' ScriptSig (TxSignature, Key Public net)  
+simpleSignature = prism fromSimple toSimple
+    where
+
+      fromSimple (sig,key) = ScriptSig $ encodeInputPayPKH sig (pub_key key)
+
+      toSimple x@(ScriptSig script) = maybe (Left x) Right $ dncodeInputPayPKH script 
+
+
 
 
 
@@ -224,22 +250,19 @@ toEscrowFor redeem  script = case toEscrow script of
 
 
 
-scriptSig :: Outpoint ->  Traversal' (Tx net) ScriptSig -- Lens' (Tx net) ScriptSig 
-scriptSig out f (Tx v inn txOuts lock) = let appF (TxIn out' script seq) 
-                                               | out' == out = (\(ScriptSig script') -> TxIn out' script' seq) <$> f (ScriptSig script ) 
-                                               | otherwise   = pure (TxIn out' script seq) 
-                                          
-                                          in (\x -> Tx v x txOuts lock ) <$> traverse appF inn  
 
 
-
-
+-- | Creates an specif type of signature for a transaction's input.
 createSignatureAs ::(BlockNetwork net) => SigHash -> Tx net -> Outpoint -> Maybe (RedeemScript net) -> Key Private net ->  TxSignature
 createSignatureAs sh tx out redeem_ key = let msg = createMessage_ sh tx out (maybe (Left key) Right redeem_)
                                            in TxSignature (detSignMsg msg key) sh
 
--- Here is the problem!
-createMessage_ :: (BlockNetwork net) => SigHash -> Tx net -> Outpoint -> Either (Key v net) (RedeemScript net) ->  Word256
+
+createMessage_ :: (BlockNetwork net) => SigHash 
+                                     -> Tx net 
+                                     -> Outpoint 
+                                     -> Either (Key v net) (RedeemScript net) 
+                                     ->  Word256
 createMessage_ sh tx@(Tx _ inn _ _) out fromInn = txSigHash tx output i sh
      where
         output   = either (encodeOutput.address) generalScript fromInn  
@@ -247,20 +270,24 @@ createMessage_ sh tx@(Tx _ inn _ _) out fromInn = txSigHash tx output i sh
                   [x] -> x 
                   _   -> 0
 
-createSignature :: (BlockNetwork net) => Tx net -> Outpoint -> Maybe (RedeemScript net) -> Key Private net ->  TxSignature
+-- | Creates a "sig-all" signature of a transaction input.
+createSignature :: (BlockNetwork net) => Tx net 
+                                      -> Outpoint 
+                                      -> Maybe (RedeemScript net) 
+                                      -> Key Private net 
+                                      ->  TxSignature
 createSignature  = createSignatureAs (SigAll False) 
 
 
 
-
-checkSignatureAt :: (BlockNetwork net) =>  Tx net -> Outpoint ->  Maybe (RedeemScript net) -> TxSignature -> Key v net ->   Bool
+-- | Verify a signature for a transaction input was done using an specific key.
+checkSignatureAt :: (BlockNetwork net) => Tx net                       -- ^ Transaction to verify.
+                                       -> Outpoint                     -- ^ Reference the input within the transaction to be verified.
+                                       -> Maybe (RedeemScript net)     -- ^ In case of multisig-escrow this should contain the RedeemScript.
+                                       -> TxSignature                  -- ^ The signature to verify.
+                                       -> Key v net                    -- ^ The signature's key. 
+                                       -> Bool
 checkSignatureAt tx out fromInn (TxSignature sig sh) key = let msg  = createMessage_ sh tx out $ maybe (Left key) Right fromInn
                                                             in checkSig msg sig (derivePublic key)
 
 
-
---txSigHash :: Tx              -- ^ Transaction to sign.
---          -> Script          -- ^ Output script that is being spent.
---          -> Int             -- ^ Index of the input that is being signed.
---          -> SigHash         -- ^ What parts of the transaction should be signed.
---          -> Word256         -- ^ Result hash to be signed.

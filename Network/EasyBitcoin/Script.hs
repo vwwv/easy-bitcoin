@@ -47,7 +47,13 @@ import Network.EasyBitcoin.BitcoinUnits
 -- | Contains:
 --    * number of requiered signatures.
 --    * public keys allowed to use for signing.
-data RedeemScript  net = RedeemScript Int [Key Public net]  deriving (Eq)
+-- The signature order does matter, it should sign using the keys from the tail of the list
+-- till the button, so for eaxample, given $RedeemScript 2 [k_a,k_b,key_c] $,
+-- $signA . signB$, $signA . signC$, $signB.signC$ would valid combination, but
+--  $signB . signA$ would not.
+data RedeemScript  net = RedeemScript { numRequired      :: Int 
+                                      , redeemSignatures :: [Key Public net]
+                                      }  deriving (Eq)
 
 
 newtype ScriptSig = ScriptSig Script deriving(Eq,Ord,Binary)
