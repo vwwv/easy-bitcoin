@@ -67,7 +67,7 @@ data Tx net = Tx   { txVersion      :: Int -- !Word32
                    } deriving (Eq)
 
 
-data TxIn  = TxIn  { prevOutput     :: Outpoint -- | Reference the previous transaction output (hash + position)
+data TxIn  = TxIn  { prevOutput     :: Outpoint -- ^ Reference the previous transaction output (hash + position)
                    , scriptInput    :: Script
                    , txInSequence   :: Int
                    } deriving (Show,Eq)

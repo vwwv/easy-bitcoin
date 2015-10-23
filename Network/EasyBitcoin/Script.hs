@@ -99,9 +99,6 @@ encodeOutput addr = case addr of
                                                        ]
 
 
-encodeOutput_ :: (BlockNetwork net) => RedeemScript net -> Script 
-encodeOutput_ = generalScript
-
 ------------------------------------------------------------------------------------------------------------------------------------
 encodeInputPayPKH :: TxSignature -> PubKey a  -> Script
 encodeInputPayPKH ts p = Script $ [ opPushData$encode' ts, opPushData$encode' p]
@@ -109,7 +106,7 @@ encodeInputPayPKH ts p = Script $ [ opPushData$encode' ts, opPushData$encode' p]
 ------------------------------------------------------------------------------------------------------------------------------------
 
 
--- TODO: Serialization for keys being compressed or not!
+
 decodeOutput :: forall net. BlockNetwork net => Script -> Maybe (Address net)
 decodeOutput (Script script) = case script of 
     
